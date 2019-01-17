@@ -1,4 +1,5 @@
 initial: START
+final: FINAL
 states:
   - name: START
     desc:
@@ -99,6 +100,8 @@ states:
     data:
       - name: START.network_send_enabled
         access: w
+    transitions:
+      - target: FINAL
 
   - name: HANDSHAKE_CONTROL
     desc:
@@ -388,3 +391,7 @@ states:
   - name: ERROR
     desc:
       - Inform Handshake layer and client application
+    transitions:
+      - target: FINAL
+
+  - name: FINAL
