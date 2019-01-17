@@ -26,27 +26,35 @@ def main() -> None:
     with open(args.file, 'r') as input_file:
         yml = yaml.load(input_file)
 
-    graph = pgv.AGraph(directed=True, splines='ortho')
-
     if 'initial' not in yml:
         logging.error('Missing \'initial\'')
         sys.exit(1)
 
-    initial_node = 'INITIAL_' + yml['initial']
-    graph.add_node(initial_node, color='black', shape='point')
-    graph.add_edge(initial_node, yml['initial'], color='black')
+    if 'final' not in yml:
+        logging.error('Missing \'final\'')
+        sys.exit(1)
 
     if 'states' not in yml:
         logging.error('Missing \'states\'')
         sys.exit(1)
 
+    graph = pgv.AGraph(directed=True, splines='ortho')
+
+    initial_node = 'INITIAL_' + yml['initial']
+    graph.add_node(initial_node, color='black', shape='point')
+    graph.add_edge(initial_node, yml['initial'], color='black')
+
     graph.add_nodes_from([state['name'] for state in yml['states']], color='black')
+    graph.add_node(yml['final'], fontname='bold')
 
     for state in yml['states']:
-        if 'transitions' in state:
-            add_transitions(graph, state['name'], state['transitions'])
-        else:
-            logging.info('No \'transitions\' in \'%s\'', state['name'])
+        if state['name'] != yml['final']:
+            if 'transitions' in state:
+                add_transitions(graph, state['name'], state['transitions'])
+            else:
+                logging.error('No \'transitions\' in \'%s\'', state['name'])
+        elif 'transitions' in state:
+            logging.error('Final node \'%s\' should have no \'transitions\'', state['name'])
 
         if 'channels' in state:
             add_channels(graph, state['name'], state['channels'])
