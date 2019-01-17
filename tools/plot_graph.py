@@ -33,14 +33,14 @@ def main() -> None:
         sys.exit(1)
 
     initial_node = 'INITIAL_' + yml['initial']
-    graph.add_node(initial_node, color='red', shape='point')
-    graph.add_edge(initial_node, yml['initial'], color='red')
+    graph.add_node(initial_node, color='black', shape='point')
+    graph.add_edge(initial_node, yml['initial'], color='black')
 
     if 'states' not in yml:
         logging.error('Missing \'states\'')
         sys.exit(1)
 
-    graph.add_nodes_from([state['name'] for state in yml['states']], color='red')
+    graph.add_nodes_from([state['name'] for state in yml['states']], color='black')
 
     for state in yml['states']:
         if 'transitions' in state:
@@ -67,25 +67,29 @@ def main() -> None:
 def add_transitions(graph: pgv.AGraph, state_name: str, transitions: List[Dict[str, str]]) -> None:
     for transition in transitions:
         condition = transition['condition'] if 'condition' in transition else ''
-        graph.add_edge(state_name, transition['target'], xlabel=condition, color='red')
+        graph.add_edge(state_name, transition['target'], xlabel=condition, color='black')
 
 
 def add_channels(graph: pgv.AGraph, state_name: str, channels: List[Dict[str, str]]) -> None:
     for channel in channels:
         graph.add_node(channel['name'], color='blue', shape='box')
-        if channel['access'].startswith('r'):
+        if channel['access'] == 'rw':
+            graph.add_edge(channel['name'], state_name, color='blue:magenta', dir='both')
+        elif channel['access'].startswith('r'):
             graph.add_edge(channel['name'], state_name, color='blue')
-        if channel['access'].endswith('w'):
-            graph.add_edge(state_name, channel['name'], color='blue')
+        elif channel['access'].endswith('w'):
+            graph.add_edge(state_name, channel['name'], color='magenta')
 
 
 def add_data(graph: pgv.AGraph, state_name: str, data_list: List[Dict[str, str]]) -> None:
     for data in data_list:
         graph.add_node(data['name'], color='green', shape='box')
-        if data['access'].startswith('r'):
+        if data['access'] == 'rw':
+            graph.add_edge(data['name'], state_name, color='green:orange', dir='both')
+        elif data['access'].startswith('r'):
             graph.add_edge(data['name'], state_name, color='green')
-        if data['access'].endswith('w'):
-            graph.add_edge(state_name, data['name'], color='green')
+        elif data['access'].endswith('w'):
+            graph.add_edge(state_name, data['name'], color='orange')
 
 
 if __name__ == '__main__':
