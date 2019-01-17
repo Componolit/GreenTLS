@@ -44,7 +44,8 @@ def main() -> None:
     graph.add_node(initial_node, color='black', shape='point')
     graph.add_edge(initial_node, yml['initial'], color='black')
 
-    graph.add_nodes_from([state['name'] for state in yml['states']], color='black')
+    states = [state['name'] for state in yml['states']]
+    graph.add_nodes_from(states, color='black')
     graph.add_node(yml['final'], fontname='bold')
 
     for state in yml['states']:
@@ -52,9 +53,9 @@ def main() -> None:
             if 'transitions' in state:
                 add_transitions(graph, state['name'], state['transitions'])
             else:
-                logging.error('No \'transitions\' in \'%s\'', state['name'])
+                logging.error('No transitions from \'%s\'', state['name'])
         elif 'transitions' in state:
-            logging.error('Final node \'%s\' should have no \'transitions\'', state['name'])
+            logging.error('Final node \'%s\' should have no outgoing transitions', state['name'])
 
         if 'channels' in state:
             add_channels(graph, state['name'], state['channels'])
@@ -65,6 +66,8 @@ def main() -> None:
             add_data(graph, state['name'], state['data'])
         else:
             logging.info('No \'data\' in \'%s\'', state['name'])
+
+    verify_graph(graph, states)
 
     basename = Path(args.file).name.rsplit('.')[0]
     graph.write(basename + '.dot')
@@ -98,6 +101,12 @@ def add_data(graph: pgv.AGraph, state_name: str, data_list: List[Dict[str, str]]
             graph.add_edge(data['name'], state_name, color='green')
         elif data['access'].endswith('w'):
             graph.add_edge(state_name, data['name'], color='orange')
+
+
+def verify_graph(graph: pgv.AGraph, states: List[str]) -> None:
+    for node in states:
+        if not [edge for edge in graph.edges(node) if edge[1] == node]:
+            logging.error('No transitions to \'%s\'', node)
 
 
 if __name__ == '__main__':
