@@ -1,0 +1,720 @@
+initial: START
+final: FINAL
+# FIXME: "A peer which receives a handshake message in an unexpected order MUST abort the handshake with an "unexpected_message" alert."
+# FIXME: "In the event that a client requests additional functionality using extensions and this functionality is not supplied by the server, the client MAY abort the handshake."
+states:
+  - name: START
+    desc:
+      - Set retry_request_received := False
+      - Check for symmetric cipher options in configuration
+      - Read key exchange mode from configuration
+      - Initialize extensions_list with supported_versions = [0x0304]
+    data:
+      - name: START.retry_request_received
+        access: w
+      - name: START.configuration
+        access: r
+      - name: START.extensions_list
+        access: w
+    transitions:
+      - target: START.DHE
+        condition: DHE configured
+      - target: START.PSK
+        condition: PSK configured
+      - target: INVALID_CONFIGURATION
+        condition: no valid exchange mode
+      - target: INVALID_CONFIGURATION
+        condition: no valid cipher suites
+
+  - name: START.PSK
+    desc:
+      - Check for supported symmetric key identities and PSK key exchange modes from configuration
+    data:
+      - name: START.configuration
+        access: r
+    transitions:
+      - target: INVALID_CONFIGURATION
+        condition: no valid symmetric key identities
+      - target: INVALID_CONFIGURATION
+        condition: no valid PSK key exchange modes
+      - target: START.PSK_EXTENSIONS
+
+  - name: START.PSK_EXTENSIONS
+    desc:
+      - Read list of symmetric key identities from configuration
+      - Add pre_shared_key to extensions_list
+      - Read PSK key exchange modes from configuration
+      - Add psk_key_exchange_modes to extensions_list
+    data:
+      - name: START.configuration
+        access: r
+      - name: START.extensions_list
+        access: rw
+    transitions:
+      - target: START.DHE
+        condition: PSK key exchange mode == psk_dhe_ke
+      - target: START.SEND
+        condition: PSK key exchange mode == psk_ke
+
+  - name: START.DHE
+    desc:
+      - Check for supported (EC)DHE groups and shares, signature algorithms and signature algorithms for certificates from configuration
+    data:
+      - name: START.configuration
+        access: r
+    transitions:
+      - target: INVALID_CONFIGURATION
+        condition: no valid (EC)DHE groups and shares
+      - target: INVALID_CONFIGURATION
+        condition: no valid signature algorithms
+      - target: START.DHE_EXTENSIONS
+        condition: valid configuration
+
+  - name: START.DHE_EXTENSIONS
+    desc:
+      - Read supported (EC)DHE groups and shares from configuration
+      - Add supported_groups to extensions_list
+      - Create (EC)DHE share for some or all of supported groups
+      - Add key_share to extensions_list
+      - Read supported signature algorithms from configuration
+      - Add signature_algorithms to extensions_list
+      - Read supported signature algorithms for certificates from configuration
+      - Add signature_algorithms_cert to extensions_list  # if configured
+    data:
+      - name: START.configuration
+        access: r
+      - name: START.extensions_list
+        access: rw
+    transitions:
+      - target: START.SEND
+
+  - name: START.SEND
+    desc:
+      - Read configuration regarding post_handshake_auth and add post_handshake_auth to extensions_list if enabled
+      - Create ClientHello message with default values
+      - Read 32 bytes from rng_in and store in ClientHello.random
+      - Read list of supported symmetric cipher options from configuration and store list in ClientHello.cipher_suites
+      - Set ClientHello.extensions to extensions_list
+      - Send ClientHello to record_out
+      - Update transcript_hash with ClientHello
+      - Read early data configuration
+    channels:
+      - name: rng_in
+        access: r
+      - name: record_out
+        access: w
+    data:
+      - name: START.configuration
+        access: r
+      - name: START.extensions_list
+        access: rw
+      - name: START.SEND.ClientHello
+        access: w
+      - name: START.SEND.transcript_hash
+        access: w
+    transitions:
+      - target: WAIT_SH
+        condition: early data not configured
+      - target: START.READ_PSK_FOR_EARLY_DATA
+        condition: early data configured
+
+  - name: START.READ_PSK_FOR_EARLY_DATA
+    desc:
+      - Read PSK from configuration
+    data:
+      - name: START.configuration
+        access: r
+    transitions:
+      - target: INVALID_CONFIGURATION
+        condition: no valid PSK
+      - target: START.SEND_KEY_FOR_EARLY_DATA
+
+  - name: START.SEND_KEY_FOR_EARLY_DATA
+    desc:
+      - Derive client_early_traffic_secret key
+      - Send key to record_out
+    channel:
+      - name: record_out
+        access: w
+    data:
+      - name: START.SEND_KEY_FOR_EARLY_DATA.client_early_traffic_secret
+        access: rw
+    transitions:
+      - target: WAIT_SH
+
+  - name: WAIT_SH
+    desc:
+      - Read ServerHello form record_in
+      - Update transcript_hash with ServerHello
+      - Parse ServerHello
+      - Check ServerHello.legacy_version = 0x0303
+      - Check ServerHello.legacy_session_id_echo = 0
+      - Check ServerHello.legacy_compression_method = 0
+    channel:
+      - name: record_in
+        access: r
+    data:
+      - name: WAIT_SH.ServerHello
+        access: rw
+      - name: START.SEND.transcript_hash
+        access: rw
+    transitions:
+      - target: SEND_ALERT_DECODE_ERROR
+        condition: parsing failed
+      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: no ServerHello received
+      - target: SEND_ALERT_PROTOCOL_VERSION
+        condition: ServerHello.legacy_version != 0
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: ServerHello.legacy_session_id_echo != 0
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: ServerHello.legacy_compression_method != 0
+      - target: WAIT_SH.VERIFY
+
+  - name: WAIT_SH.VERIFY
+    desc:
+      - Check that ServerHello.cipher_suite is contained in ClientHello.cipher_suites
+      - Check supported_versions in ServerHello.extensions
+    data:
+      - name: WAIT_SH.ServerHello
+        access: r
+      - name: START.SEND.ClientHello
+        access: r
+    transitions:
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: ServerHello.cipher_suite was not proposed
+      - target: SEND_ALERT_MISSING_EXTENSION
+        condition: supported_versions missing
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: supported_versions is not [0x0304]
+      - target: WAIT_SH.CHECK_RETRY_REQUEST
+
+  - name: WAIT_SH.CHECK_RETRY_REQUEST
+    desc:
+      - Check ServerHello.random
+    data:
+      - name: WAIT_SH.ServerHello
+        access: r
+      - name: START.retry_request_received
+        access: r
+    transitions:
+      - target: WAIT_SH.PARSE_HRR
+        condition: ServerHello.random matches special value for HelloRetryRequest and retry_request_received == False
+      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: ServerHello.random matches special value for HelloRetryRequest and retry_request_received == True
+      - target: WAIT_SH.EXTENSIONS
+
+  - name: WAIT_SH.EXTENSIONS
+    desc:
+      - Check ServerHello.extensions does not contain any new extension compared to ClientHello.extensions
+      - Read key exchange mode from configuration
+    data:
+      - name: WAIT_SH.ServerHello
+        access: r
+      - name: START.SEND.ClientHello
+        access: r
+      - name: START.configuration
+        access: r
+    transitions:
+      - target: WAIT_SH.EXTENSIONS_PSK
+        condition: PSK configured
+      - target: WAIT_SH.EXTENSIONS_DHE
+        condition: DHE and not PSK configured
+
+  - name: WAIT_SH.EXTENSIONS_PSK
+    desc:
+      - Check for pre_shared_key in ServerHello.extensions
+      - Check selected_identity in pre_shared_key is in range of extensions_list['pre_shared_key']
+      - Check ServerHello.cipher_suite indicates a Hash associated with the selected PSK (extensions_list['pre_shared_key'].OfferedPsks[selected_identity])
+      - Read PSK key exchange mode from configuration
+      - Check key_share not in ServerHello.extensions if PSK key exchange mode == psk_ke  # FIXME
+      - Check for early_data in ServerHello.extensions
+      - Check selected_identity == 0 if early_data present  # FIXME
+    data:
+      - name: WAIT_SH.ServerHello
+        access: r
+      - name: START.extensions_list
+        access: r
+    transitions:
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: pre_shared_key not present
+      - target: WAIT_SH.EXTENSIONS_DHE
+        condition: PSK key exchange mode == psk_dhe_ke
+      - target: WAIT_EE
+        condition: PSK key exchange mode == psk_ke
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: key_share present in ServerHello.extensions and PSK key exchange mode == psk_ke
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: selected_identity in pre_shared_key is not in range
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: ServerHello.cipher_suite does not indicate a Hash associated with the selected PSK
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: selected_identity != 0 and early_data present
+
+  - name: WAIT_SH.EXTENSIONS_DHE
+    desc:
+      - Check key_share in ServerHello.extensions contains one of key_share in extensions_list
+    data:
+      - name: WAIT_SH.ServerHello
+        access: r
+      - name: START.extensions_list
+        access: r
+    transitions:
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: key_share not present
+      - target: WAIT_EE
+
+  - name: WAIT_SH.PARSE_HRR
+    desc:
+      - Set retry_request_received := True
+      - Check ServerHello.extensions does not contain any new extension compared to ClientHello.extensions except for cookie extension
+      - If pre_shared_key exists in ServerHello.extensions, keep only keys associated with a hash in selected cipher suite
+      - If key_share exists in ServerHello.extensions, check selected group corresponds to a group which was provided in supported_groups extension in ClientHello.extensions
+      - If key_share exists in ServerHello.extensions, check selected group corresponds not to a group which was provided in key_share extension in ClientHello.extensions
+      - If key_share exists in ServerHello.extensions, replace key_share in extensions_list with key_share containing single KeyShareEntry from indicated group
+      - If cookie exists in ServerHello.extensions, add copy to extensions_list
+      - If early_data exists in extension_list, remove it
+      - If padding extension exists, optionall add, remove or change length
+      - Replace transcript_hash with hash of synthetic Client Hello
+      - Send ClientHello with updated extensions_list on record_out
+      - Update transcript_hash with ServerHello
+    channel:
+      - name: record_out
+        access: w
+    data:
+      - name: START.retry_request_received
+        access: w
+      - name: WAIT_SH.ServerHello
+        access: r
+      - name: START.extensions_list
+        access: rw
+      - name: START.SEND.ClientHello
+        access: rw
+      - name: START.SEND.transcript_hash
+        access: rw
+    transitions:
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: key_share in ServerHello.extensions exists and selected group corresponds not to a group which was provided in supported_groups extension in ClientHello.extensions
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: key_share in ServerHello.extensions exists and selected group corresponds to a group which was provided in the key_share extension in ClientHello.extensions
+      - target: WAIT_SH
+
+  - name: WAIT_EE
+    desc:
+      - Derive server_handshake_traffic_secret key
+      - Send key to record_out as K_recv
+      - Read EncryptedExtensions from record_in
+    channel:
+      - name: record_out
+        access: w
+      - name: record_in
+        access: r
+    data:
+      - name: WAIT_EE.server_handshake_traffic_secret
+        access: rw
+      - name: WAIT_EE.EncryptedExtensions
+        access: w
+    transitions:
+      - target: WAIT_EE.PARSE
+        condition: EncryptedExtensions received
+
+  - name: WAIT_EE.PARSE
+    desc:
+      - Check for forbidden extensions in EncryptedExtensions
+    data:
+      - name: WAIT_EE.EncryptedExtensions
+        access: r
+    transitions:
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: forbidden extension found
+      - target: WAIT_EE.PARSE_2
+
+  - name: WAIT_EE.PARSE_2
+    desc:
+      - Process extensions *
+      - Update transcript_hash
+      - Read configuration
+    transitions:
+      - target: WAIT_FINISHED
+        condition: only PSK is used
+      - target: WAIT_CERT_CR
+        condition: certificates are used
+    data:
+      - name: WAIT_EE.EncryptedExtensions
+        access: r
+      - name: START.configuration
+        access: r
+      - name: START.SEND.transcript_hash
+        access: rw
+
+  - name: WAIT_CERT_CR
+    desc:
+      - Read CertificateRequest from record_in
+    channel:
+      - name: record_in
+        access: r
+    data:
+      - name: WAIT_CERT_CR.CertificateRequest
+        access: r
+    transitions:
+      - target: WAIT_CV
+        condition: Certificate received
+      - target: WAIT_CERT_CR.PARSE
+        condition: CertificateRequest received
+
+  - name: WAIT_CERT_CR.PARSE
+    desc:
+      - Parse CertificateRequest
+    data:
+      - name: WAIT_CERT_CR.CertificateRequest
+        access: r
+    transitions:
+      - target: ???
+        condition: parsing failed
+      - target: WAIT_CERT_CR.PARSE_2
+
+  - name: WAIT_CERT_CR.PARSE_2
+    desc:
+      - Update transcript_hash
+      - Check for signature_algorithms in CertificateRequest.extensions
+    data:
+      - name: START.SEND.transcript_hash
+        access: rw
+      - name: WAIT_CERT_CR.CertificateRequest
+        access: r
+    transitions:
+      - target: ???
+        condition: extension not present
+      - target: WAIT_CERT_CR.PARSE_3
+
+  - name: WAIT_CERT_CR.PARSE_3
+    desc:
+      - Store signature_algorithms
+      - Store oid_filters, if oid_filters in CertificateRequest.extensions
+      - Process further externsions *
+    data:
+      - name: WAIT_CERT_CR.CertificateRequest
+        access: r
+      - name: signature_algorithms
+        access: w
+      - name: oid_filters
+        access: w
+    transitions:
+      - target: WAIT_CERT
+
+  - name: WAIT_CERT
+    desc:
+      - Check for new message in record_in
+    channel:
+      - name: record_in
+        access: r
+    transitions:
+      - target: WAIT_CERT.PARSE
+        condition: Certificate received
+
+  - name: WAIT_CERT.PARSE
+    desc:
+      - Parse Certificate
+    transitions:
+      - target: SEND_ALERT_DECODE_ERROR
+        condition: Certificate empty
+      - target: WAIT_CERT.PARSE_2
+
+  - name: WAIT_CERT.PARSE_2
+    desc:
+      - Verify Certificate
+    data:
+      - name: Certificate
+        access: r
+    transitions:
+      - target: SEND_ALERT_BAD_CERTIFICATE
+        condition: Certificate uses MD5 or is invalid
+      - target: WAIT_CERT.PARSE_3
+
+  - name: WAIT_CERT.PARSE_3
+    desc:
+      - Update transcript_hash with Certificate
+    data:
+      - name: Certificate
+        access: r
+      - name: START.SEND.transcript_hash
+        access: rw
+    transitions:
+      - target: WAIT_CV
+
+  - name: WAIT_CV
+    desc:
+      - Check for new message in record_in
+    channel:
+      - name: record_in
+        access: r
+    transitions:
+      - target: WAIT_CV.PARSE
+        condition: CertificateVerify received
+
+  - name: WAIT_CV.PARSE
+    desc:
+      - Parse CertificateVerify
+      - Ensure CertificateVerify.algorithm is one of signature_algorithms
+    data:
+      - name: CertificateVerify
+        access: r
+      - name: signature_algorithms
+        access: r
+    transitions:
+      - target: SEND_ALERT_???
+        condition: invalid algorithm
+      - target: WAIT_CV.PARSE_2
+
+  - name: WAIT_CV.PARSE_2
+    desc:
+      - Verify CertificateVerify.signature using transcript_hash and public key of certificate using CertificateVerify.algorithm
+    transitions:
+      - target: SEND_ALERT_DECRYPT_ERROR
+        condition: signature invalid
+      - target: WAIT_CV.PARSE_3
+
+  - name: WAIT_CV.PARSE_3
+    desc:
+      - Update transcript_hash with Certificate and CertificateVerify
+    data:
+      - name: Certificate
+        access: r
+      - name: CertificateVerify
+        access: r
+      - name: START.SEND.transcript_hash
+        access: rw
+    transitions:
+      - target: WAIT_FINISHED
+
+  - name: WAIT_FINISHED
+    desc:
+      - Check for new message in record_in
+    channel:
+      - name: record_in
+        access: r
+    transitions:
+      - target: WAIT_FINISHED.PARSE
+        condition: Finished received
+
+  - name: WAIT_FINISHED.PARSE
+    desc:
+      - Parse Finished
+      - Update transcript_hash with Finished
+      - Derive finished_key from client_handshake_traffic_secret
+      - Calculate MAC based on transcript_hash and finished_key
+      - Verify Finished with MAC
+    data:
+      - name: START.SEND.transcript_hash
+        access: rw
+    transitions:
+      - target: SEND_ALERT_DECRYPT_ERROR
+        condition: Finished invalid
+      - target: WAIT_FINISHED.PARSE_2
+
+  - name: WAIT_FINISHED.PARSE_2
+    desc:
+      - If early data used, stop transmission of early data send EndOfEarlyData
+      - If early data used, send EndOfEarlyData
+      - Derive client_handshake_traffic_secret key
+      - Send key to record_out as K_send
+      - Read certificate information from configuration
+      - Ensure certificate is of type X.509v3 (if not negotiated otherwise)
+      - Ensure certificate is signed using one of negotiated signature_algorithms
+      - Ensure certificate match extension OIDs (if oid_filters was present in CertificateRequest)
+      - Create Certificate (empty if no certificate in configuration)
+      - Send Certificate
+      - Update transcript_hash with Certificate
+      - Create CertificateVerify, create signature over transcript_hash
+      - Send CertificateVerify, if Certificate non-empty
+      - Update transcript_hash with CertificateVerify
+      - Create Finished, create MAC over transcript_hash with client_handshake_traffic_secret
+      - Send Finished
+      - Update transcript_hash with Finished
+      - Derive client_application_traffic_secret_0 and server_application_traffic_secret_0 keys
+      - Send keys to record_out as K_send and K_recv
+      - Start transmission of application data
+    channel:
+      - name: record_out
+        access: w
+    data:
+      - name: START.configuration
+        access: r
+      - name: client_handshake_traffic_secret
+        access: rw
+      - name: finished_key
+        access: rw
+      - name: client_application_traffic_secret_0
+        access: rw
+      - name: server_application_traffic_secret_0
+        access: rw
+      - name: signature_algorithms
+        access: r
+      - name: oid_filters
+        access: r
+      - name: START.SEND.transcript_hash
+        access: rw
+    transitions:
+      - target: CONNECTED
+
+  - name: CONNECTED
+    desc:
+      - Check for message in record_in
+    channel:
+      - name: record_in
+        access: r
+    transitions:
+      - target: CONNECTED.NST
+        condition: NewSessionTicket received
+      - target: CONNECTED.PHA
+        condition: CertificateRequest received
+      - target: CONNECTED.KU
+        condition: KeyUpdate received
+
+  - name: CONNECTED.NST
+    desc:
+      - Parse NewSessionTicket
+      - Calculate PSK associated with ticket
+      - Store PSK and additional information in session_tickets
+      - Read NewSessionTicket.extensions and store information of early_data extension (if present) in session_tickets
+    data:
+      - name: NewSessionTicket
+        access: r
+      - name: session_tickets
+        access: w
+    transitions:
+      - target: CONNECTED
+
+  - name: CONNECTED.PHA
+    desc:
+      - Parse CertificateRequest
+      - Read configuration regarding post_handshake_auth
+    data:
+      - name: WAIT_CERT_CR.CertificateRequest
+        access: r
+    transitions:
+      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: post_handshake_auth not enabled
+      - target: CONNECTED.PHA_2
+
+  - name: CONNECTED.PHA_2
+    desc:
+      - Create and send Certificate, CertificateVerify (if Certificate non-empty), and Finished to record_out
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTED
+
+  - name: CONNECTED.KU
+    desc:
+      - Parse KeyUpdate
+      - Derive server_application_traffic_secret_N+1
+      - Send server_application_traffic_secret_N+1 to record_out as K_recv
+      - Read KeyUpdate.request_update
+    channel:
+      - name: record_out
+        access: w
+    data:
+      - name: KeyUpdate
+        access: r
+    transitions:
+      - target: CONNECTED.SEND_KU
+        condition: KeyUpdate.request_update == update_requested
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: KeyUpdate.request_update invalid
+
+  - name: CONNECTED.SEND_KU
+    desc:
+      - Derive client_application_traffic_secret_N+1
+      - Create and send KeyUpdate with request_update := update_not_requested
+      - Send client_application_traffic_secret_N+1 to record_out as K_send
+    channel:
+      - name: record_out
+        access: w
+    data:
+      - name: KeyUpdate
+        access: w
+    transitions:
+      - target: CONNECTED
+
+  - name: SEND_ALERT_ILLEGAL_PARAMETER
+    desc:
+      - Send illegal_parameter alert
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
+
+  - name: SEND_ALERT_DECODE_ERROR
+    desc:
+      - Send decode_error alert
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
+
+  - name: SEND_ALERT_BAD_CERTIFICATE
+    desc:
+      - Send bad_certificate alert
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
+
+  - name: SEND_ALERT_UNEXPECTED_MESSAGE
+    desc:
+      - Send unexpected_message alert
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
+
+  - name: SEND_ALERT_DECRYPT_ERROR
+    desc:
+      - Send decrypt_error alert
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
+
+  - name: SEND_ALERT_PROTOCOL_VERSION
+    desc:
+      - Send protocol_version alert
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
+
+  - name: SEND_ALERT_MISSING_EXTENSION
+    desc:
+      - Send missing_extension alert
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
+
+  - name: CONNECTION_TERMINATED
+    desc:
+      - Inform client application
+    channels:
+      - name: application_out
+        access: w
+    transitions:
+      - target: FINAL
+
+  - name: INVALID_CONFIGURATION
+    desc:
+      - Inform client application
+    channels:
+      - name: application_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
