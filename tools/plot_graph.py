@@ -49,6 +49,7 @@ def main() -> None:
     graph.add_node(yml['final'], fontname='bold')
 
     data_nodes: Set[str] = set()
+    channel_nodes: Set[str] = set()
 
     for state in yml['states']:
         check_state_attributes(state)
@@ -62,6 +63,7 @@ def main() -> None:
             logging.error('Final node \'%s\' should have no outgoing transitions', state['name'])
 
         if 'channels' in state:
+            channel_nodes.update({channel['name'] for channel in state['channels']})
             add_channels(graph, state['name'], state['channels'])
         else:
             logging.info('No \'channels\' in \'%s\'', state['name'])
@@ -72,7 +74,7 @@ def main() -> None:
         else:
             logging.info('No \'data\' in \'%s\'', state['name'])
 
-    verify_graph(graph, state_nodes, data_nodes)
+    verify_graph(graph, state_nodes, data_nodes, channel_nodes)
 
     basename = Path(args.file).name.rsplit('.')[0]
     graph.write(basename + '.dot')
@@ -114,9 +116,9 @@ def add_data(graph: pgv.AGraph, state_name: str, data_list: List[Dict[str, str]]
             graph.add_edge(state_name, data['name'], color='orange')
 
 
-def verify_graph(graph: pgv.AGraph, state_nodes: List[str], data_nodes: Set[str]) -> None:
+def verify_graph(graph: pgv.AGraph, state_nodes: List[str], data_nodes: Set[str], channel_nodes: Set[str]) -> None:
     for node in state_nodes:
-        if not [edge for edge in graph.edges(node) if edge[1] == node]:
+        if not [edge for edge in graph.edges(node) if edge[1] == node and edge[0] not in channel_nodes | data_nodes]:
             logging.error('No transition to \'%s\'', node)
     for node in data_nodes:
         if not [edge for edge in graph.edges(node) if edge[0] == node]:
