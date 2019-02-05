@@ -9,15 +9,15 @@ states:
       - Set network_receive_enabled := True
       - Set network_send_enabled := True
     data:
-      - name: START.client_sequence_number
+      - name: client_sequence_number
         access: w
-      - name: START.server_sequence_number
+      - name: server_sequence_number
         access: w
-      - name: START.record_protection
+      - name: record_protection
         access: w
-      - name: START.network_receive_enabled
+      - name: network_receive_enabled
         access: w
-      - name: START.network_send_enabled
+      - name: network_send_enabled
         access: w
     transitions:
       - target: IDLE
@@ -31,50 +31,65 @@ states:
     transitions:
       - target: CONTROL
         condition: control message received
-      - target: IDLE.HANDSHAKE
-    channel:
+      - target: IDLE.KEY_UPDATE
+    channels:
       - name: control_in
         access: r
+  - name: IDLE.KEY_UPDATE
+    desc:
+      - Check for message from key management
+    channels:
+      - name: key_in
+        access: r
+    transitions:
+      - target: KEY_UPDATE
+        condition: key message received
+      - target: IDLE.HANDSHAKE
   - name: IDLE.HANDSHAKE
     desc:
       - Check for message from Handshake layer
-    channel:
+    channels:
       - name: handshake_in
-        access: r
-    data:
-      - name: START.record_protection
         access: r
     transitions:
       - target: HANDSHAKE
         condition: handshake message received
-      - target: HANDSHAKE_CONTROL
-        condition: control message received
       - target: IDLE.NETWORK
   - name: IDLE.NETWORK
     desc:
       - Check for message from network layer
-    channel:
+    channels:
       - name: network_in
         access: r
     data:
-      - name: START.network_receive_enabled
+      - name: network_receive_enabled
         access: r
-      - name: START.network_send_enabled
+      - name: network_send_enabled
         access: r
     transitions:
-      - target: NETWORK
+      - target: NETWORK_IN
         condition: message received and network_receive_enabled == True
       - target: IDLE.APPLICATION
   - name: IDLE.APPLICATION
     desc:
       - Check for message from client application
-    channel:
+    channels:
       - name: application_in
         access: r
     transitions:
-      - target: APPLICATION
+      - target: NETWORK_OUT.APPLICATION
         condition: message received
-      - target: IDLE.MESSAGE
+      - target: IDLE.HEARTBEAT
+  - name: IDLE.HEARTBEAT
+    desc:
+      - Check for message from heartbeat component
+    channels:
+      - name: heartbeat_in
+        access: r
+    transitions:
+      - target: HEARTBEAT
+        condition: message received
+      - target: IDLE
 
   - name: CONTROL
     desc:
@@ -84,7 +99,7 @@ states:
       - name: control_in
         access: r
     data:
-      - name: CONTROL.ControlMessage
+      - name: ControlMessage
         access: rw
     transitions:
       - target: SHUTDOWN
@@ -98,68 +113,57 @@ states:
       - name: network_out
         access: w
     data:
-      - name: START.network_send_enabled
+      - name: network_send_enabled
         access: w
     transitions:
       - target: FINAL
 
-  - name: HANDSHAKE_CONTROL
+  - name: KEY_UPDATE
     desc:
-      - Read HandshakeMessage from handshake_in
-      - Parse HandshakeMessage
+      - Read KeyMessage from key_in
+      - Parse KeyMessage
     channels:
-      - name: handshake_in
+      - name: key_in
         access: r
     data:
-      - name: HANDSHAKE_CONTROL.HandshakeMessage
+      - name: KeyMessage
         access: rw
     transitions:
-      - target: KEY_UPDATE_CLIENT
+      - target: KEY_UPDATE.CLIENT
         condition: key update message for client
-      - target: KEY_UPDATE_SERVER
+      - target: KEY_UPDATE.SERVER
         condition: key update message for server
-      - target: ALERT
-        condition: alert message
 
-  - name: KEY_UPDATE_CLIENT
+  - name: KEY_UPDATE.CLIENT
     desc:
-      - Read client_write_key from HandshakeMessage
+      - Read client_write_key from KeyMessage
       - Set client_sequence_number := 0
       - Set record_protection := True
     data:
-      - name: HANDSHAKE_CONTROL.HandshakeMessage
+      - name: KeyMessage
         access: r
-      - name: KEY_UPDATE_CLIENT.client_write_key
+      - name: client_write_key
         access: w
-      - name: START.client_sequence_number
+      - name: client_sequence_number
         access: w
-      - name: START.record_protection
+      - name: record_protection
         access: w
     transitions:
       - target: IDLE
 
-  - name: KEY_UPDATE_SERVER
+  - name: KEY_UPDATE.SERVER
     desc:
-      - Read server_write_key from HandshakeMessage
+      - Read server_write_key from KeyMessage
       - Set server_sequence_number := 0
     data:
-      - name: HANDSHAKE_CONTROL.HandshakeMessage
+      - name: KeyMessage
         access: r
-      - name: KEY_UPDATE_SERVER.server_write_key
+      - name: server_write_key
         access: w
-      - name: START.server_sequence_number
+      - name: server_sequence_number
         access: w
     transitions:
       - target: IDLE
-
-  - name: ALERT
-    desc:
-      - Send alert message on network_out
-    channels:
-      - name: network_out
-        access: w
-    transitions:
-      - target: ERROR
 
   - name: HANDSHAKE
     desc:
@@ -168,48 +172,19 @@ states:
       - name: handshake_in
         access: r
     data:
-      - name: HANDSHAKE.TLSRecord
+      - name: NETWORK_OUT.TLSRecord
         access: w
+      - name: record_protection
+        access: r
     transitions:
-      - target: HANDSHAKE_SEND
+      - target: NETWORK_OUT.SEND
         condition: record_protection == False and network_send_enabled == True
-      - target: HANDSHAKE_ENCRYPT
+      - target: NETWORK_OUT.ENCRYPT_AND_SEND
         condition: record_protection == True and network_send_enabled == True
       - target: IDLE
         condition: network_send_enabled == False
 
-  - name: HANDSHAKE_ENCRYPT
-    desc:
-      - Encrypt TLSRecord with client_write_key
-      - Increment client_sequence_number
-    channels:
-      - name: handshake_in
-        access: r
-      - name: network_out
-        access: w
-    data:
-      - name: KEY_UPDATE_CLIENT.client_write_key
-        access: r
-      - name: START.client_sequence_number
-        access: rw
-      - name: HANDSHAKE.TLSRecord
-        access: rw
-    transitions:
-      - target: HANDSHAKE_SEND
-
-  - name: HANDSHAKE_SEND
-    desc:
-      - Write TLSRecord to network_out
-    channels:
-      - name: network_out
-        access: w
-    data:
-      - name: HANDSHAKE.TLSRecord
-        access: r
-    transitions:
-      - target: IDLE
-
-  - name: NETWORK
+  - name: NETWORK_IN
     desc:
       - Read TLSRecord from network_in
       - Check record type
@@ -217,74 +192,76 @@ states:
       - name: network_in
         access: r
     data:
-      - name: NETWORK.TLSRecord
+      - name: NETWORK_IN.TLSRecord
         access: w
     transitions:
-      - target: NETWORK_DECRYPT
+      - target: NETWORK_IN.DECRYPT
         condition: type == application_data
-      - target: NETWORK_PARSE
+      - target: NETWORK_IN.PARSE
         condition: type == alert or type == handshake
-      - target: NETWORK_HANDSHAKE
+      - target: NETWORK_IN.HANDSHAKE
         condition: type == change_cipher_spec
+      - target: NETWORK_IN.HEARTBEAT
+        condition: type == heartbeat
       - target: ERROR
         condition: invalid record
 
-  - name: NETWORK_DECRYPT
+  - name: NETWORK_IN.DECRYPT
     desc:
       - Decrypt TLSRecord to TLSInnerPlaintext with server_write_key
     data:
-      - name: KEY_UPDATE_SERVER.server_write_key
+      - name: server_write_key
         access: r
-      - name: NETWORK.TLSRecord
+      - name: NETWORK_IN.TLSRecord
         access: rw
-      - name: NETWORK_DECRYPT.TLSInnerPlaintext
+      - name: TLSInnerPlaintext
         access: rw
     transitions:
       - target: ERROR
         condition: no server_write_key available
       - target: ERROR
         condition: decryption failed
-      - target: NETWORK_DECRYPT.VERIFICATION
+      - target: NETWORK_IN.DECRYPT.VERIFICATION
         condition: decryption successful
-  - name: NETWORK_DECRYPT.VERIFICATION
+  - name: NETWORK_IN.DECRYPT.VERIFICATION
     desc:
       - Verify TLSInnerPlaintext
     data:
-      - name: NETWORK_DECRYPT.TLSInnerPlaintext
+      - name: TLSInnerPlaintext
         access: r
     transitions:
       - target: ERROR
         condition: Handshake or Alert record with zero-length TLSInnerPlaintext.content
       - target: ERROR
         condition: only padding, no type field found
-      - target: NETWORK_DECRYPT.TRANSFORM
+      - target: NETWORK_IN.DECRYPT.TRANSFORM
         condition: verification successful
-  - name: NETWORK_DECRYPT.TRANSFORM
+  - name: NETWORK_IN.DECRYPT.TRANSFORM
     desc:
       - Transform TLSInnerPlaintext to TLSRecord
       - Increment server_sequence_number
     data:
-      - name: NETWORK_DECRYPT.TLSInnerPlaintext
+      - name: TLSInnerPlaintext
         access: r
-      - name: NETWORK.TLSRecord
+      - name: NETWORK_IN.TLSRecord
         access: w
-      - name: START.server_sequence_number
+      - name: server_sequence_number
         access: rw
     transitions:
-      - target: NETWORK_PARSE
+      - target: NETWORK_IN.PARSE
 
-  - name: NETWORK_PARSE
+  - name: NETWORK_IN.PARSE
     desc:
       - Parse TLSRecord
     data:
-      - name: NETWORK.TLSRecord
+      - name: NETWORK_IN.TLSRecord
         access: r
     transitions:
-      - target: NETWORK_APPLICATION
+      - target: NETWORK_IN.APPLICATION
         condition: type == application_data
-      - target: NETWORK_HANDSHAKE
+      - target: NETWORK_IN.HANDSHAKE
         condition: type == handshake
-      - target: NETWORK_ALERT
+      - target: NETWORK_IN.ALERT
         condition: type == alert
       - target: ERROR
         condition: type == change_cipher_spec
@@ -292,44 +269,56 @@ states:
         condition: invalid type
       - target: IDLE
 
-  - name: NETWORK_APPLICATION
+  - name: NETWORK_IN.APPLICATION
     desc:
       - Write TLSRecord.content to application_out
     channels:
       - name: application_out
         access: w
     data:
-      - name: NETWORK.TLSRecord
+      - name: NETWORK_IN.TLSRecord
         access: r
     transitions:
       - target: IDLE
 
-  - name: NETWORK_HANDSHAKE
+  - name: NETWORK_IN.HANDSHAKE
     desc:
       - Write TLSRecord.content to handshake_out
     channels:
       - name: handshake_out
         access: w
     data:
-      - name: NETWORK.TLSRecord
+      - name: NETWORK_IN.TLSRecord
         access: r
     transitions:
       - target: IDLE
 
-  - name: NETWORK_ALERT
+  - name: NETWORK_IN.HEARTBEAT
+    desc:
+      - Write TLSRecord to heartbeat_out
+    channels:
+      - name: heartbeat_out
+        access: w
+    data:
+      - name: NETWORK_IN.TLSRecord
+        access: r
+    transitions:
+      - target: IDLE
+
+  - name: NETWORK_IN.ALERT
     desc:
       - Parse TLSRecord as alert message
       - Check type
     data:
-      - name: NETWORK.TLSRecord
+      - name: NETWORK_IN.TLSRecord
         access: r
     transitions:
-      - target: NETWORK_ALERT_CLOSE
+      - target: NETWORK_IN.ALERT.CLOSE
         condition: type == close_notify
-      - target: NETWORK_ALERT_TERMINATE
+      - target: NETWORK_IN.ALERT.TERMINATE
         condition: type != close_notify
 
-  - name: NETWORK_ALERT_CLOSE
+  - name: NETWORK_IN.ALERT.CLOSE
     desc:
       - Set network_receive_enabled := False
       - Send alert to control_out
@@ -337,12 +326,12 @@ states:
       - name: control_out
         access: w
     data:
-      - name: START.network_receive_enabled
+      - name: network_receive_enabled
         access: w
     transitions:
       - target: IDLE
 
-  - name: NETWORK_ALERT_TERMINATE
+  - name: NETWORK_IN.ALERT.TERMINATE
     desc:
       - Send alert to control_out
     channels:
@@ -351,41 +340,66 @@ states:
     transitions:
       - target: ERROR
 
-  - name: APPLICATION
+  - name: NETWORK_OUT.APPLICATION
     desc:
       - Read ApplicationMessage from application_in
       - Create TLSRecord containing ApplicationMessage
-      - Encrypt TLSRecord to TLSCiphertext with client_write_key
     channels:
       - name: application_in
         access: r
     data:
-      - name: KEY_UPDATE_CLIENT.client_write_key
-        access: r
-      - name: APPLICATION.ApplicationMessage
+      - name: ApplicationMessage
         access: rw
-      - name: APPLICATION.TLSRecord
+      - name: NETWORK_OUT.TLSRecord
         access: rw
-      - name: APPLICATION.TLSCiphertext
-        access: w
     transitions:
-      - target: ERROR
-        condition: no client_write_key available
-      - target: APPLICATION.SEND
-        condition: encryption successful
-  - name: APPLICATION.SEND
+      - target: NETWORK_OUT.ENCRYPT_AND_SEND
+
+  - name: HEARTBEAT
     desc:
+      - Read TLSRecord from heartbeat_in
+      - Check TLSRecord for valid heartbeat message
+    channels:
+      - name: heartbeat_in
+        access: r
+    data:
+      - name: NETWORK_OUT.TLSRecord
+        access: rw
+    transitions:
+      - target: NETWORK_OUT.ENCRYPT_AND_SEND
+
+  - name: NETWORK_OUT.SEND
+    desc:
+      - Write TLSRecord to network_out
+    channels:
+      - name: network_out
+        access: w
+    data:
+      - name: NETWORK_OUT.TLSRecord
+        access: r
+    transitions:
+      - target: IDLE
+
+  - name: NETWORK_OUT.ENCRYPT_AND_SEND
+    desc:
+      - Encrypt TLSRecord to TLSCiphertext with client_write_key
       - Write TLSCiphertext to network_out
       - Increment client_sequence_number
     channels:
       - name: network_out
         access: w
     data:
-      - name: APPLICATION.TLSCiphertext
+      - name: NETWORK_OUT.TLSRecord
+        access: rw
+      - name: client_write_key
         access: r
-      - name: START.client_sequence_number
+      - name: TLSCiphertext
+        access: rw
+      - name: client_sequence_number
         access: rw
     transitions:
+      - target: ERROR
+        condition: no client_write_key available
       - target: IDLE
 
   - name: ERROR
