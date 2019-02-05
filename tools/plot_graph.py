@@ -51,6 +51,8 @@ def main() -> None:
     data_nodes: Set[str] = set()
 
     for state in yml['states']:
+        check_state_attributes(state)
+
         if state['name'] != yml['final']:
             if 'transitions' in state:
                 add_transitions(graph, state['name'], state['transitions'])
@@ -76,6 +78,14 @@ def main() -> None:
     graph.write(basename + '.dot')
     graph.layout('dot')
     graph.draw(basename + '.png')
+
+
+def check_state_attributes(state: Dict[str, str]) -> None:
+    if 'name' not in state.keys():
+        logging.error('Missing name attribute')
+        sys.exit(2)
+    for attribute in set(state.keys()) - set(['channels', 'data', 'desc', 'name', 'transitions']):
+        logging.warning('Unexpected attribute \'%s\' in state \'%s\'', attribute, state['name'])
 
 
 def add_transitions(graph: pgv.AGraph, state_name: str, transitions: List[Dict[str, str]]) -> None:
