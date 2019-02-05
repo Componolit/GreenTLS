@@ -8,6 +8,8 @@ states:
       - Set record_protection := False
       - Set network_receive_enabled := True
       - Set network_send_enabled := True
+      - Set heartbeat_receive_enabled := False
+      - Set heartbeat_send_enabled := False
     data:
       - name: client_sequence_number
         access: w
@@ -18,6 +20,10 @@ states:
       - name: network_receive_enabled
         access: w
       - name: network_send_enabled
+        access: w
+      - name: heartbeat_receive_enabled
+        access: w
+      - name: heartbeat_send_enabled
         access: w
     transitions:
       - target: IDLE
@@ -86,8 +92,21 @@ states:
     channels:
       - name: heartbeat_in
         access: r
+    data:
+      - name: heartbeat_send_enabled
+        access: r
     transitions:
       - target: HEARTBEAT
+        condition: message received and heartbeat_send_enabled == True
+      - target: IDLE.HEARTBEAT_CONTROL
+  - name: IDLE.HEARTBEAT_CONTROL
+    desc:
+      - Check for message from heartbeat_control component
+    channels:
+      - name: heartbeat_control_in
+        access: r
+    transitions:
+      - target: HEARTBEAT_CONTROL
         condition: message received
       - target: IDLE
 
@@ -194,6 +213,8 @@ states:
     data:
       - name: NETWORK_IN.TLSRecord
         access: w
+      - name: heartbeat_receive_enabled
+        access: r
     transitions:
       - target: NETWORK_IN.DECRYPT
         condition: type == application_data
@@ -202,9 +223,10 @@ states:
       - target: NETWORK_IN.HANDSHAKE
         condition: type == change_cipher_spec
       - target: NETWORK_IN.HEARTBEAT
-        condition: type == heartbeat
+        condition: type == heartbeat and heartbeat_receive_enabled == True
       - target: ERROR
         condition: invalid record
+      - target: IDLE
 
   - name: NETWORK_IN.DECRYPT
     desc:
@@ -400,6 +422,25 @@ states:
     transitions:
       - target: ERROR
         condition: no client_write_key available
+      - target: IDLE
+
+  - name: HEARTBEAT_CONTROL
+    desc:
+      - Read HeartbeatControlMessage from heartbeat_control_in
+      - Parse HeartbeatControlMessage
+      - Set heartbeat_receive_enabled
+      - Set heartbeat_send_enabled
+    channels:
+      - name: heartbeat_control_in
+        access: r
+    data:
+      - name: HeartbeatControlMessage
+        access: rw
+      - name: heartbeat_receive_enabled
+        access: w
+      - name: heartbeat_send_enabled
+        access: w
+    transitions:
       - target: IDLE
 
   - name: ERROR
