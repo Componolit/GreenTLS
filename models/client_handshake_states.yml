@@ -7,12 +7,18 @@ states:
     desc:
       - Set retry_request_received := False
       - Set server_name_received := False
-      - Set max_fragment_length__received := False
+      - Set max_fragment_length_received := False
+      - Set early_data_received := False
+      - Set status_request_received := False
+      - Set certificate_authorities_received := False
+      - Set oid_filters_received := False
+      - Set signature_algorithms_received := False
+      - Set signature_algorithms_cert_received := False
       - Read configuration from datastore_in
       - Check for symmetric cipher options in configuration
-      - Read key exchange mode from configuration
+      - Read configuration.key_exchange_mode
       - Initialize extensions_list with supported_versions = [0x0304]
-      - Read configuration and create extensions for Client Hello (server_name, max_fragment_length, status_request, supported_groups, signature_algorithms, use_srtp, heartbeat, application_layer_protocol_negotiation, signed_certificate_timestamp, client_certificate_type, server_certificate_type, padding, key_share, pre_shared_key, psk_key_exchange_modes, early_data, cookie, supported_versions, certificate_authorities, post_handshake_auth, signature_algorithms_cert)
+      - Read configuration and create extensions for Client Hello (server_name, max_fragment_length, status_request, supported_groups, signature_algorithms, use_srtp, heartbeat, application_layer_protocol_negotiation, client_certificate_type, server_certificate_type, padding, key_share, pre_shared_key, psk_key_exchange_modes, early_data, cookie, supported_versions, certificate_authorities, post_handshake_auth, signature_algorithms_cert)  # FIXME: signed_certificate_timestamp not supported
     channels:
       - name: datastore_in
         access: r
@@ -326,6 +332,8 @@ states:
       - name: EncryptedExtensions
         access: w
     transitions:
+      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: no EncryptedExtensions received
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE
@@ -363,13 +371,15 @@ states:
       - Update transcript_hash with EncryptedExtensions
       - Check if configuration.server_name and server_name_received
       - Check if configuration.max_fragment_length and max_fragment_length_received
-      - Read configuration  # FIXME: handle psk and certificates as configuration entries
+      - Check if configuration.early_data and early_data_received
     data:
       - name: EncryptedExtensions
         access: r
       - name: server_name_received
         access: r
       - name: max_fragment_length_received
+        access: r
+      - name: early_data_received
         access: r
       - name: configuration
         access: r
@@ -380,6 +390,17 @@ states:
         condition: configuration.server_name is set and server_name_received = False
       - target: SEND_ALERT_MISSING_EXTENSION
         condition: configuration.max_fragment_length is set and max_fragment_length_received = False
+      - target: NO_EARLY_DATA
+        condition: configuration.early_data is set and early_data_received = False
+      - target: WAIT_EE.DISPATCH
+
+  - name: WAIT_EE.DISPATCH
+    desc:
+      - Read configuration.key_exchange_mode
+    data:
+      - name: configuration
+        access: r
+    transitions:
       - target: WAIT_FINISHED
         condition: only PSK is used
       - target: WAIT_CERT_CR
@@ -471,131 +492,258 @@ states:
 
   - name: WAIT_EE.PARSE_CLIENT_CERTIFICATE_TYPE
     desc:
-      - 
+      - Read client_certificate_type from EncryptedExtensions
+      - Check selected type is one of proposed types from configuration
     data:
       - name: EncryptedExtensions
         access: r
+      - name: configuration
+        access: r
     transitions:
+      - target: SEND_ALERT_UNSUPPORTED_CERTIFICATE
+        condition: invalid certificate type
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_SERVER_CERTIFICATE_TYPE
     desc:
-      - 
+      - Read server_certificate_type from EncryptedExtensions
+      - Check selected type is one of proposed types from configuration
     data:
       - name: EncryptedExtensions
         access: r
+      - name: configuration
+        access: r
+      - name: server_certificate_type
+        access: w
     transitions:
+      - target: SEND_ALERT_UNSUPPORTED_CERTIFICATE
+        condition: invalid certificate type
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_EARLY_DATA
     desc:
-      - 
+      - Read early_data from EncryptedExtensions
+      - Set early_data_received := True
     data:
       - name: EncryptedExtensions
         access: r
+      - name: early_data_received
+        access: w
     transitions:
       - target: WAIT_EE.PARSE
 
+  - name: NO_EARLY_DATA
+    desc:
+      - Indicate no early data to application_out
+    channels:
+      - name: application_out
+        access: w
+    transitions:
+      - target: WAIT_EE.DISPATCH
+
   - name: WAIT_CERT_CR
     desc:
-      - Read CertificateRequest from record_in
+      - Read CertificateCrMessage from record_in
     channels:
       - name: record_in
         access: r
     data:
-      - name: CertificateRequest
+      - name: CertificateCrMessage
         access: r
     transitions:
-      - target: WAIT_CV
+      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: no Certificate or CertificateRequest received
+      - target: PARSE_CERT
         condition: Certificate received
-      - target: WAIT_CERT_CR.PARSE
+      - target: PARSE_CR
         condition: CertificateRequest received
 
-  - name: WAIT_CERT_CR.PARSE
+  - name: PARSE_CR
     desc:
-      - Parse CertificateRequest  # FIXME: parse status_request extension
+      - Parse extensions from CertificateCrMessage
+      - Check next extensions, skip if unknown  # FIXME: signed_certificate_timestamp not supported
     data:
-      - name: CertificateRequest
+      - name: CertificateCrMessage
         access: r
     transitions:
-      - target: ???
-        condition: parsing failed
-      - target: WAIT_CERT_CR.PARSE_2
+      - target: PARSE_CR.PARSE_STATUS_REQUEST
+        condition: status_request extension found
+      - target: PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
+        condition: certificate_authorities extension found
+      - target: PARSE_CR.PARSE_OID_FILTERS
+        condition: oid_filters extension found
+      - target: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
+        condition: signature_algorithms extension found
+      - target: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
+        condition: signature_algorithms_cert extension found
+      - target: PARSE_CR.CHECK_EXTENSIONS
+        condition: no further extensions
 
-  - name: WAIT_CERT_CR.PARSE_2
+  - name: PARSE_CR.PARSE_STATUS_REQUEST
     desc:
-      - Update transcript_hash
-      - Check for signature_algorithms in CertificateRequest.extensions
+      - Set status_request_received := True
+      - Store status_request  # FIXME: check when sending client certificate
     data:
-      - name: transcript_hash
-        access: rw
-      - name: CertificateRequest
-        access: r
+      - name: status_request_received
+        access: w
+      - name: status_request
+        access: w
     transitions:
-      - target: ???
-        condition: extension not present
-      - target: WAIT_CERT_CR.PARSE_3
+      - target: PARSE_CR
 
-  - name: WAIT_CERT_CR.PARSE_3
+  - name: PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
     desc:
-      - Store signature_algorithms
-      - Store oid_filters, if oid_filters in CertificateRequest.extensions
-      - Process further externsions *
+      - Set certificate_authorities_received := True
+      - Store certificate_authorities  # FIXME: check when sending client certificate
     data:
-      - name: CertificateRequest
-        access: r
-      - name: signature_algorithms
+      - name: certificate_authorities_received
+        access: w
+      - name: certificate_authorities
+        access: w
+    transitions:
+      - target: PARSE_CR
+
+  - name: PARSE_CR.PARSE_OID_FILTERS
+    desc:
+      - Set oid_filters_received := True
+      - Store oid_filters  # FIXME: check when sending client certificate
+    data:
+      - name: oid_filters_received
         access: w
       - name: oid_filters
         access: w
     transitions:
-      - target: WAIT_CERT
+      - target: PARSE_CR
 
-  - name: WAIT_CERT
+  - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
     desc:
-      - Check for new message in record_in
-    channels:
-      - name: record_in
-        access: r
-    transitions:
-      - target: WAIT_CERT.PARSE
-        condition: Certificate received
-
-  - name: WAIT_CERT.PARSE
-    desc:
-      - Read Certificate from record_in
-    channels:
-      - name: record_in
-        access: r
+      - Set signature_algorithms_received := True
+      - Store signature_algorithms  # FIXME: check when sending client certificate
     data:
-      - name: Certificate
-        access: rw
+      - name: signature_algorithms_received
+        access: w
+      - name: signature_algorithms
+        access: w
     transitions:
-      - target: SEND_ALERT_DECODE_ERROR
-        condition: Certificate empty
-      - target: WAIT_CERT.PARSE_2
+      - target: PARSE_CR
 
-  - name: WAIT_CERT.PARSE_2
+  - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
     desc:
-      - Verify Certificate
+      - Set signature_algorithms_cert_received := True
+      - Store signature_algorithms_cert  # FIXME: check when sending client certificate
     data:
-      - name: Certificate
+      - name: signature_algorithms_cert_received
+        access: w
+      - name: signature_algorithms_cert
+        access: w
+    transitions:
+      - target: PARSE_CR
+
+  - name: PARSE_CR.CHECK_EXTENSIONS
+    desc:
+      - Update transcript_hash with CertificateCrMessage
+      - Check if signature_algorithms_received = True
+    data:
+      - name: CertificateCrMessage
         access: r
-    transitions:
-      - target: SEND_ALERT_BAD_CERTIFICATE
-        condition: Certificate uses MD5 or is invalid
-      - target: WAIT_CERT.PARSE_3
-
-  - name: WAIT_CERT.PARSE_3
-    desc:
-      - Update transcript_hash with Certificate
-    data:
-      - name: Certificate
+      - name: signature_algorithms_received
         access: r
       - name: transcript_hash
         access: rw
     transitions:
+      - target: SEND_ALERT_MISSING_EXTENSION
+        condition: signature_algorithms_received = False
+      - target: WAIT_CERT
+
+  - name: WAIT_CERT
+    desc:
+      - Read CertificateCrMessage from record_in
+    channels:
+      - name: record_in
+        access: r
+    data:
+      - name: CertificateCrMessage
+        access: w
+    transitions:
+      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: no Certificate received
+      - target: SEND_ALERT_DECODE_ERROR
+        condition: Certificate empty
+      - target: PARSE_CERT
+        condition: Certificate received
+
+  - name: PARSE_CERT
+    desc:
+      - Update transcript_hash with CertificateCrMessage
+      - Check CertificateCrMessage.certificate_list
+    data:
+      - name: CertificateCrMessage
+        access: r
+      - name: transcript_hash
+        access: rw
+    transitions:
+      - target: SEND_ALERT_DECODE_ERROR
+        condition: CertificateCrMessage.certificate_list is empty
+      - target: SEND_ALERT_BAD_CERTIFICATE
+        condition: server_certificate_type = RawPublicKey and CertificateCrMessage.certificate_list does not contain exactly one entry
+      - target: SEND_ALERT_BAD_CERTIFICATE
+        condition: server_certificate_type != X509 and server_certificate_type != RawPublicKey
+      - target: PARSE_CERT.PARSE_ENTRIES
+
+  - name: PARSE_CERT.PARSE_ENTRIES
+    desc:
+      - Parse CertificateEntry from CertificateCrMessage
+      - Store CertificateEntry in CertificateList
+      - Check next entry
+    data:
+      - name: CertificateCrMessage
+        access: r
+      - name: CertificateEntry
+        access: w
+      - name: CertificateList
+        access: w
+    transitions:
+      - target: PARSE_CERT.VERIFY_CERTIFICATE
+        condition: no further entries
+      - target: PARSE_CERT.PARSE_EXTENSIONS
+
+  - name: PARSE_CERT.PARSE_EXTENSIONS
+    desc:
+      - Parse CertificateEntry.extensions
+      - Check next extensions, skip if unknown  # FIXME: signed_certificate_timestamp not supported
+    data:
+      - name: CertificateEntry
+        access: r
+      - name: configuration
+        access: r
+    transitions:
+      - target: PARSE_CERT.PARSE_STATUS_REQUEST
+        condition: status_request extension found and was requested by configuration.status_request
+      - target: PARSE_CERT.PARSE_ENTRIES
+        condition: no further extensions
+
+  - name: PARSE_CERT.PARSE_STATUS_REQUEST
+    desc:
+      - Read and verify CertificateStatus from CertificateEntry.extensions
+    data:
+      - name: CertificateEntry
+        access: r
+    transitions:
+      - target: PARSE_CERT.PARSE_EXTENSIONS
+
+  - name: PARSE_CERT.VERIFY_CERTIFICATE
+    desc:
+      - Verify certificates and their status in CertificateList
+    data:
+      - name: CertificateList
+        access: r
+    transitions:
       - target: WAIT_CV
+        condition: certificate valid
+      - target: SEND_ALERT_BAD_CERTIFICATE
+        condition: invalid certificate
+      - target: SEND_ALERT_BAD_CERTIFICATE
+        condition: Certificate uses MD5 or is invalid
 
   - name: WAIT_CV
     desc:
@@ -859,6 +1007,15 @@ states:
   - name: SEND_ALERT_MISSING_EXTENSION
     desc:
       - Send missing_extension alert
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CONNECTION_TERMINATED
+
+  - name: SEND_ALERT_UNSUPPORTED_CERTIFICATE
+    desc:
+      - Send unsupported_certificate alert
     channels:
       - name: record_out
         access: w
