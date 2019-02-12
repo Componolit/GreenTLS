@@ -1,0 +1,11 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-06T15:38:03+01:00
+
+* SoK: SSL and HTTPS: Revisiting past challenges and evaluating certiﬁcate trust model enhancements
+
+* Implementing TLS with Veriﬁed Cryptographic Security
+
+* Lucky Thirteen: Breaking the TLS and DTLS Record Protocols
+
+* On the Security of TLS Renegotiation

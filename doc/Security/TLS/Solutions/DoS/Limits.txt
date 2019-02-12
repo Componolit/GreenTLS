@@ -1,0 +1,13 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-06T08:28:30+01:00
+
+* Size of certificate message
+
+* Size of CertificateVerify message
+
+* Chain length
+
+* Configured maximum depth
+
+* Limit RSA modulus

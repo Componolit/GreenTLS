@@ -1,0 +1,7 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-05T07:43:06+01:00
+
+* Rethinking SSL Development in an Appified World
+
+* An Empirical Study of Cryptographic Misuse in Android Applications

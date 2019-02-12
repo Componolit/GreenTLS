@@ -1,0 +1,7 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-05T13:03:19+01:00
+
+* Plaintext-Recovery Attacks Against Datagram TLS
+
+* The Case for Prefetching and Prevalidating TLS Server Certificates

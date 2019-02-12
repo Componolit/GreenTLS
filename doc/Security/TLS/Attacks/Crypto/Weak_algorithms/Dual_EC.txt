@@ -1,0 +1,5 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-05T13:52:15+01:00
+
+* don't use dubious NSA crypto

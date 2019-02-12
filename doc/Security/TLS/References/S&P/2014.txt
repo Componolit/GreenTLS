@@ -1,0 +1,9 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-05T12:17:29+01:00
+
+* Using Frankencerts for Automated Adversarial Testing of Certificate Validation in SSL/TLS Implementations
+
+* Triple Handshakes and Cookie Cutters: Breaking and Fixing Authentication over TLS
+
+* Analyzing Forged SSL Certificates in the Wild
