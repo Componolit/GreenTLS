@@ -1,0 +1,9 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-05T12:15:49+01:00
+
+====== Frankencerts ======
+
+Ref: [[TLS:References:S_P:2014:Using_Frankencerts_for_Automated_Adversarial_Testing_
+
+_of_Certificate_Validation_in_SSL_TLS_Implementations]]

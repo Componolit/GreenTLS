@@ -8,18 +8,21 @@ import time
 
 db = {}
 
+def escape(data):
+    return data.translate(str.maketrans('()/?&"’\': ', '__________'))
+
 def fill_db(node, path=None):
     children = node.findall('node')
     for m in children:
-        fullpath = (path or [])
+        fullpath = (path or []) + [escape(m.get('TEXT'))]
         db[m.get('ID')] = fullpath
-        fill_db(m, fullpath + [m.get('TEXT')])
+        fill_db(m, fullpath)
 
 def handle_nodes(node, path=None):
     children = node.findall('node')
     for m in children:
         text = " ".join(m.get('TEXT').split())
-        escaped = text.translate(str.maketrans('() ', '___'))
+        escaped = escape(text)
         ident=m.get('ID')
         links=[link.get('DESTINATION') for link in m.findall('arrowlink')]
         handle_nodes(m, (path or []) + [{ 'escaped': escaped,
@@ -27,20 +30,21 @@ def handle_nodes(node, path=None):
                                           'created': int(m.get('CREATED')),
                                           'id':      ident,
                                           'links':   links}])
+
+    directory = "/".join([x['escaped'] for x in path])
+    os.makedirs(directory, exist_ok=True)
     if not children:
-        p = "/".join([x['escaped'] for x in path[:-1]])
-        d = p + ".txt"
-        os.makedirs(p, exist_ok=True)
-        if not os.path.exists(d):
-            with open(d, "w") as f:
+        filename = directory + ".txt"
+        if not os.path.exists(filename):
+            with open(filename, "w") as f:
                 f.write ("Content-Type: text/x-zim-wiki\n")
                 f.write ("Wiki-Format: zim 0.4\n")
                 created=path[-1]['created']
                 f.write ("Creation-Date: {time}\n".format(time=time.strftime('%Y-%m-%dT%H:%M:%S+01:00', time.gmtime(created/1000))))
-        with open(d, "a") as f:
-            f.write ("\n")
-            f.write ("* " + path[-1]['text'] + "\n")
-            if path[-1]['links']:
+                f.write ("\n====== {title} ======\n".format(title=path[-1]['text']))
+        if path[-1]['links']:
+            with open(filename, "a") as f:
+                f.write ("\n")
                 f.write ("Ref: " + ", ".join('[[' + ":".join(db[p]) + ']]' for p in path[-1]['links']) + "\n")
 
 basedir=sys.argv[2]

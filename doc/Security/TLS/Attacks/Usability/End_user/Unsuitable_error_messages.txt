@@ -1,5 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-05T06:58:11+01:00
-
-* User accepts rogue certificate

@@ -1,0 +1,5 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-06T09:15:22+01:00
+
+====== Upgrading HTTPS in Mid-Air: An Empirical Study of Strict Transport Security and Key Pinning ======

@@ -1,0 +1,5 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-06T08:25:28+01:00
+
+====== Practical Issues with TLS Client Certificate Authentication ======

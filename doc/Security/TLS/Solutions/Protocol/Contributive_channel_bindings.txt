@@ -1,7 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-05T13:33:45+01:00
-
-* contribution from each participant
-
-* binding to all parameters and secrtes of previous sessions (resumption)

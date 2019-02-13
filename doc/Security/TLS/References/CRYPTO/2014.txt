@@ -1,5 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-06T15:32:38+01:00
-
-* Proving the TLS Handshake Secure (as it is)

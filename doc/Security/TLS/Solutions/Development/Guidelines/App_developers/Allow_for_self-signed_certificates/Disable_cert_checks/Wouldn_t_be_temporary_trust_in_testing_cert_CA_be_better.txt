@@ -1,0 +1,5 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-05T11:48:16+01:00
+
+====== Wouldn't be temporary trust in testing cert/CA be better ======

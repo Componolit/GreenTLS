@@ -1,0 +1,9 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-10-05T12:45:22+01:00
+
+====== SMV-HUNTER ======
+
+Ref: [[TLS:References:NDSS:2014:SMV-HUNTER__Large_Scale,_Automated_Detection_of_
+
+_SSL_TLS_Man-in-the-Middle_Vulnerabilities_in_Android_Apps]]

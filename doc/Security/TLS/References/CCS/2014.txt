@@ -1,9 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-05T11:55:21+01:00
-
-* Securing SSL Certificate Verification through Dynamic Linking
-
-* ARPKI: Attack Resilient Public-Key Infrastructure
-
-* Multi-Stage Key Exchange and the Case of Google’s QUIC Protocol

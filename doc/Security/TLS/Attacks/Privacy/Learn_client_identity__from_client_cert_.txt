@@ -1,9 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-06T08:19:40+01:00
-
-* Encrypted client certs draft-agl-tls-encryptedclientcerts-00)
-
-* Encrypted handshake extension (draft-ray-tls-encrypted-handshake-00)
-
-* Request cert on renegotation

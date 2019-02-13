@@ -1,9 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-05T13:42:18+01:00
-
-* Revisiting SSL/TLS Implementations: New Bleichenbacher Side Channels and Attacks
-
-* On the Practical Exploitability of Dual EC in TLS Implementations
-
-* On the Effective Prevention of TLS Man-in-the-Middle Attacks in Web Applications

@@ -1,7 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-05T12:11:29+01:00
-
-* Vetting SSL Usage in Applications with SSL INT
-
-* How Secure and Quick is QUIC? Provable Security and Performance Analyses

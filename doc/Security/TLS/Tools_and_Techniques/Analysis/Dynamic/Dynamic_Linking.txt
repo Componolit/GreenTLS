@@ -1,6 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-05T11:56:33+01:00
-
-* CertShim
-Ref: [[TLS:References:CCS:2014]]

@@ -1,0 +1,5 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2015-09-30T10:57:58+01:00
+
+====== RSA private key extraction ======

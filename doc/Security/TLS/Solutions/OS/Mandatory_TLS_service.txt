@@ -1,9 +1,0 @@
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.4
-Creation-Date: 2015-10-05T07:49:54+01:00
-
-* validation
-
-* pinning configured in manifest
-
-* system-level warnings
