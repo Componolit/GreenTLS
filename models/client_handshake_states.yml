@@ -6,6 +6,7 @@ states:
   - name: START
     desc:
       - Set retry_request_received := False
+      - Set certificate_request_received := False
       - Set server_name_received := False
       - Set max_fragment_length_received := False
       - Set early_data_received := False
@@ -14,6 +15,7 @@ states:
       - Set oid_filters_received := False
       - Set signature_algorithms_received := False
       - Set signature_algorithms_cert_received := False
+      - Set server_certificate_type := X509
       - Read configuration from datastore_in
       - Read server prefered groups from datastore_in
       - Select supported_groups from server prefered groups and configuration.supported_groups
@@ -27,9 +29,25 @@ states:
     data:
       - name: retry_request_received
         access: w
+      - name: certificate_request_received
+        access: w
       - name: server_name_received
         access: w
       - name: max_fragment_length_received
+        access: w
+      - name: early_data_received
+        access: w
+      - name: status_request_received
+        access: w
+      - name: certificate_authorities_received
+        access: w
+      - name: oid_filters_received
+        access: w
+      - name: signature_algorithms_received
+        access: w
+      - name: signature_algorithms_cert_received
+        access: w
+      - name: server_certificate_type
         access: w
       - name: configuration
         access: rw
@@ -140,9 +158,9 @@ states:
   - name: START.READ_PSK_FOR_EARLY_DATA
     desc:
       - Read PSK from keystore_in
-      - early_secret = HKDF-Extract(0, PSK)
+      - early_secret := HKDF-Extract(0, PSK)
       - Erase PSK
-      - client_early_traffic_secret = Derive-Secret(early_secret, "c e traffic", ClientHello)
+      - client_early_traffic_secret := Derive-Secret(early_secret, "c e traffic", transcript_hash)
       - Send client_early_traffic_secret to record_out
       - Erase client_early_traffic_secret
     channels:
@@ -151,12 +169,12 @@ states:
       - name: record_out
         access: w
     data:
+      - name: transcript_hash
+        access: r
       - name: early_secret
         access: rw
       - name: client_early_traffic_secret
         access: rw
-      - name: ClientHello
-        access: r
     transitions:
       - target: INVALID_CONFIGURATION
         condition: no valid PSK
@@ -170,6 +188,7 @@ states:
       - Check ServerHello.legacy_version = 0x0303
       - Check ServerHello.legacy_session_id_echo = 0
       - Check ServerHello.legacy_compression_method = 0
+      - Set hash_length := ServerHello.cipher_suite.length
     channels:
       - name: record_in
         access: r
@@ -178,6 +197,8 @@ states:
         access: rw
       - name: transcript_hash
         access: rw
+      - name: hash_length
+        access: w
     transitions:
       - target: SEND_ALERT_DECODE_ERROR
         condition: parsing failed
@@ -322,16 +343,15 @@ states:
   - name: WAIT_EE
     desc:
       - Calculate ecdh_key from ClientHello.key_share and ServerHello.key_share
-      - derived_early_secret = Derive-Secret(early_secret, "derived", "")
+      - derived_early_secret := Derive-Secret(early_secret, "derived", "")
       - Erase early_secret
-      - handshake_secret = HKDF-Extract(derived_early_secret, ecdh_key)
+      - handshake_secret := HKDF-Extract(derived_early_secret, ecdh_key)
       - Erase derived_early_secret
-      - client_handshake_traffic_secret = Derive-Secret(handshake_secret, "c hs traffic", ClientHello...ServerHello)
-      - server_handshake_traffic_secret = Derive-Secret(handshake_secret, "s hs traffic", ClientHello...ServerHello)
-      - Send client_handshake_traffic_secret to record_out as server_write_key
+      - client_handshake_traffic_secret := Derive-Secret(handshake_secret, "c hs traffic", transcript_hash)
+      - server_handshake_traffic_secret := Derive-Secret(handshake_secret, "s hs traffic", transcript_hash)
       - Send server_handshake_traffic_secret to record_out as client_write_key
       - Erase server_handshake_traffic_secret
-      - derived_handshake_secret = Derive-Secret(handshake_secret, "derived", "")
+      - derived_handshake_secret := Derive-Secret(handshake_secret, "derived", "")
       - Erase handshake_secret
       - Read EncryptedExtensions from record_in
     channels:
@@ -343,6 +363,8 @@ states:
       - name: ClientHello
         access: r
       - name: ServerHello
+        access: r
+      - name: transcript_hash
         access: r
       - name: early_secret
         access: rw
@@ -581,6 +603,7 @@ states:
 
   - name: PARSE_CR
     desc:
+      - Set certificate_request_received := True
       - Copy CertificateCrMessage to CertificateRequest
       - Parse extensions from CertificateRequest
       - Check next extensions, skip if unknown  # FIXME: signed_certificate_timestamp not supported
@@ -591,6 +614,8 @@ states:
         access: rw
       - name: transcript_hash
         access: rw
+      - name: certificate_request_received
+        access: w
     transitions:
       - target: PARSE_CR.PARSE_STATUS_REQUEST
         condition: status_request extension found
@@ -608,7 +633,7 @@ states:
   - name: PARSE_CR.PARSE_STATUS_REQUEST
     desc:
       - Set status_request_received := True
-      - Store status_request  # FIXME: check when sending client certificate
+      - Store status_request
     data:
       - name: status_request_received
         access: w
@@ -620,7 +645,7 @@ states:
   - name: PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
     desc:
       - Set certificate_authorities_received := True
-      - Store certificate_authorities  # FIXME: check when sending client certificate
+      - Store certificate_authorities
     data:
       - name: certificate_authorities_received
         access: w
@@ -632,7 +657,7 @@ states:
   - name: PARSE_CR.PARSE_OID_FILTERS
     desc:
       - Set oid_filters_received := True
-      - Store oid_filters  # FIXME: check when sending client certificate
+      - Store oid_filters
     data:
       - name: oid_filters_received
         access: w
@@ -644,19 +669,21 @@ states:
   - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
     desc:
       - Set signature_algorithms_received := True
-      - Store signature_algorithms  # FIXME: check when sending client certificate
+      - Store signature_algorithms
     data:
       - name: signature_algorithms_received
         access: w
       - name: signature_algorithms
         access: w
     transitions:
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: no supported signature algorithm
       - target: PARSE_CR
 
   - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
     desc:
       - Set signature_algorithms_cert_received := True
-      - Store signature_algorithms_cert  # FIXME: check when sending client certificate
+      - Store signature_algorithms_cert
     data:
       - name: signature_algorithms_cert_received
         access: w
@@ -702,12 +729,14 @@ states:
     desc:
       - Copy CertificateCrMessage to Certificate
       - Update transcript_hash with Certificate
-      - Check CertificateCrMessage.certificate_list
+      - Check Certificate.certificate_list using server_certificate_type
     data:
       - name: CertificateCrMessage
         access: r
       - name: Certificate
         access: rw
+      - name: server_certificate_type
+        access: r
       - name: transcript_hash
         access: rw
     transitions:
@@ -807,75 +836,184 @@ states:
   - name: WAIT_FINISHED
     desc:
       - Read Finished from record_in
-      - finished_key = HKDF-Expand-Label(client_handshake_traffic_secret, "finished", "", ServerHello.cipher_suite.length)
-      - verify_data = HMAC(finished_key, transcript_hash)
+      - finished_key := HKDF-Expand-Label(client_handshake_traffic_secret, "finished", "", hash_length)
+      - verify_data := HMAC(finished_key, transcript_hash)
       - Check Finished.verify_data = verify_data
+      - Update transcript_hash with Finished
+      - master_secret := HKDF-Extract(derived_handshake_secret, 0)
+      - Erase derived_handshake_secret
+      - client_application_traffic_secret_0 := Derive-Secret(master_secret, "c ap traffic", transcript_hash)
+      - server_application_traffic_secret_0 := Derive-Secret(master_secret, "s ap traffic", transcript_hash)
+      - resumption_master_secret := Derive-Secret(master_secret, "res master", transcript_hash)
+      - Erase master_secret
     channels:
       - name: record_in
         access: r
     data:
       - name: client_handshake_traffic_secret
         access: r
+      - name: finished_key
+        access: w
       - name: transcript_hash
         access: r
-      - name: ServerHello
+      - name: client_application_traffic_secret_0
+        access: w
+      - name: server_application_traffic_secret_0
+        access: w
+      - name: resumption_master_secret
+        access: w
+      - name: hash_length
         access: r
     transitions:
       - target: SEND_ALERT_DECRYPT_ERROR
         condition: Finished invalid
-      - target: WAIT_FINISHED.PARSE_2
+      - target: SEND_END_OF_EARLY_DATA
+        condition: early_data_received = True
+      - target: CHECK_CERTIFICATE_CONDITIONS
+        condition: early_data_received = False
 
-  - name: WAIT_FINISHED.PARSE_2
+  - name: SEND_END_OF_EARLY_DATA
     desc:
-      - If early data used, stop transmission of early data send EndOfEarlyData
-      - If early data used, send EndOfEarlyData
-      - Derive client_handshake_traffic_secret key
-      - Send key to record_out as K_send
-      - Read certificate information from configuration
-      - Ensure certificate is of type X.509v3 (if not negotiated otherwise)
-      - Ensure certificate is signed using one of negotiated signature_algorithms
-      - Ensure certificate match extension OIDs (if oid_filters was present in CertificateRequest)
-      - Create Certificate (empty if no certificate in configuration)
-      - Send Certificate
+      - Send EndOfEarlyData to record_out
+    channels:
+      - name: record_out
+        access: w
+    transitions:
+      - target: CHECK_CERTIFICATE_CONDITIONS
+
+  - name: CHECK_CERTIFICATE_CONDITIONS
+    desc:
+      - Check certificate_request_received
+      - Read available certificates from configuration
+      - Filter certificates compatible with certificate_authorities if certificate_authorities_received
+      - Filter certificates compatible with oid_filters if oid_filters_received
+      - Filter certificates compatible with signature_algorithms if signature_algorithms_received and not signature_algorithms_cert_received
+      - Filter certificates compatible with signature_algorithms_cert if signature_algorithms_cert_received
+    data:
+      - name: certificate_request_received
+        access: r
+      - name: configuration
+        access: r
+      - name: certificates
+        access: rw
+      - name: certificate_authorities
+        access: r
+      - name: certificate_authorities_received
+        access: r
+      - name: oid_filters
+        access: r
+      - name: oid_filters_received
+        access: r
+      - name: signature_algorithms
+        access: r
+      - name: signature_algorithms_received
+        access: r
+      - name: signature_algorithms_cert
+        access: r
+      - name: signature_algorithms_cert_received
+        access: r
+    transitions:
+      - target: SEND_FINISHED
+        name: certificate_request_received = False
+      - target: SEND_CERTIFICATE
+        condition: certificate_request_received = True and certificates is non-empty
+      - target: SEND_EMPTY_CERTIFICATE
+        condition: certificate_request_received = True and certificates is empty
+
+  - name: SEND_CERTIFICATE
+    desc:
+      - Do OCSP request based on selected certificate and status_request if status_request_received
+      - Create Certificate using configuration
+      - Send Certificate to record_out
       - Update transcript_hash with Certificate
-      - Create CertificateVerify, create signature over transcript_hash
-      - Send CertificateVerify, if Certificate non-empty
-      - Update transcript_hash with CertificateVerify
-      - Create Finished, create MAC over transcript_hash with client_handshake_traffic_secret
-      - Send Finished
-      - Update transcript_hash with Finished
-      - Derive client_application_traffic_secret_0 and server_application_traffic_secret_0 keys
-      - Send keys to record_out as K_send and K_recv
-      - Start transmission of application data
     channels:
       - name: record_out
         access: w
     data:
+      - name: certificates
+        access: rw
+      - name: Certificate
+        access: w
       - name: configuration
         access: r
-      - name: client_handshake_traffic_secret
+      - name: status_request
+        access: r
+      - name: status_request_received
+        access: r
+      - name: transcript_hash
         access: rw
+    transitions:
+      - target: SEND_CERTIFICATE_VERIFY
+
+  - name: SEND_EMPTY_CERTIFICATE
+    desc:
+      - Create empty Certificate
+      - Send Certificate to record_out
+      - Update transcript_hash with Certificate
+    channels:
+      - name: record_out
+        access: w
+    data:
+      - name: Certificate
+        access: w
+      - name: transcript_hash
+        access: rw
+    transitions:
+      - target: SEND_FINISHED
+
+  - name: SEND_CERTIFICATE_VERIFY
+    desc:
+      - Select one algorithm of signature_algorithms
+      - Create CertificateVerify with transcript_hash using selected algorithm
+      - Send CertificateVerify to record_out
+      - Update transcript_hash with CertificateVerify
+    data:
+      - name: signature_algorithms
+        access: r
+      - name: CertificateVerify
+        access: rw
+      - name: transcript_hash
+        access: r
+    transitions:
+      - target: SEND_FINISHED
+
+  - name: SEND_FINISHED
+    desc:
+      - Send client_handshake_traffic_secret to record_out as server_write_key
+      - Erase client_handshake_traffic_secret
+      - verify_data := HMAC(finished_key, transcript_hash)
+      - Erase finished_key
+      - Create Finished with verify_data
+      - Send Finished to record_out
+      - Send client_application_traffic_secret_0 to record_out as client_write_key
+      - Erase client_application_traffic_secret_0
+      - Send server_application_traffic_secret_0 to record_out as server_write_key
+      - Erase server_application_traffic_secret_0
+    channels:
+      - name: record_out
+        access: w
       - name: finished_key
+        access: rw
+      - name: transcript_hash
+        access: r
+      - name: derived_handshake_secret
         access: rw
       - name: client_application_traffic_secret_0
         access: rw
       - name: server_application_traffic_secret_0
-        access: rw
-      - name: signature_algorithms
-        access: r
-      - name: oid_filters
-        access: r
-      - name: transcript_hash
         access: rw
     transitions:
       - target: CONNECTED
 
   - name: CONNECTED
     desc:
-      - Check for message in record_in
+      - Read PostHandshakeMessage from record_in
     channels:
       - name: record_in
         access: r
+    data:
+      - name: PostHandshakeMessage
+        access: w
     transitions:
       - target: CONNECTED.NST
         condition: NewSessionTicket received
@@ -883,32 +1021,36 @@ states:
         condition: CertificateRequest received
       - target: CONNECTED.KU
         condition: KeyUpdate received
+      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: unexpected message received
 
   - name: CONNECTED.NST
     desc:
-      - Read NewSessionTicket from record_in
-      - Calculate PSK associated with ticket
-      - Store PSK and additional information in keystore_out
-      - Read NewSessionTicket.extensions and store information of early_data extension (if present) in keystore_out
+      - Copy PostHandshakeMessage to NewSessionTicket
+      - psk := HKDF-Expand-Label(resumption_master_secret, "resumption", NewSessionTicket.ticket_nonce, hash_length)
+      - Store psk and NewSessionTicket to keystore_out
     channels:
-      - name: record_in
-        access: r
       - name: keystore_out
         access: w
     data:
+      - name: PostHandshakeMessage
+        access: r
       - name: NewSessionTicket
         access: rw
+      - name: resumption_master_secret
+        access: r
+      - name: hash_length
+        access: r
     transitions:
       - target: CONNECTED
 
   - name: CONNECTED.PHA
     desc:
-      - Read CertificateRequest from record_in
+      - Copy PostHandshakeMessage to CertificateRequest
       - Read configuration regarding post_handshake_auth
-    channels:
-      - name: record_in
-        access: r
     data:
+      - name: PostHandshakeMessage
+        access: r
       - name: CertificateRequest
         access: rw
     transitions:
@@ -927,6 +1069,7 @@ states:
 
   - name: CONNECTED.KU
     desc:
+      - Copy PostHandshakeMessage to KeyUpdate
       - Parse KeyUpdate
       - Derive server_application_traffic_secret_N+1
       - Send server_application_traffic_secret_N+1 to record_out as K_recv
@@ -935,6 +1078,8 @@ states:
       - name: record_out
         access: w
     data:
+      - name: PostHandshakeMessage
+        access: r
       - name: KeyUpdate
         access: r
     transitions:
