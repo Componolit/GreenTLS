@@ -842,8 +842,8 @@ states:
       - Update transcript_hash with Finished
       - master_secret := HKDF-Extract(derived_handshake_secret, 0)
       - Erase derived_handshake_secret
-      - client_application_traffic_secret_0 := Derive-Secret(master_secret, "c ap traffic", transcript_hash)
-      - server_application_traffic_secret_0 := Derive-Secret(master_secret, "s ap traffic", transcript_hash)
+      - client_application_traffic_secret := Derive-Secret(master_secret, "c ap traffic", transcript_hash)
+      - server_application_traffic_secret := Derive-Secret(master_secret, "s ap traffic", transcript_hash)
       - resumption_master_secret := Derive-Secret(master_secret, "res master", transcript_hash)
       - Erase master_secret
     channels:
@@ -856,9 +856,9 @@ states:
         access: w
       - name: transcript_hash
         access: r
-      - name: client_application_traffic_secret_0
+      - name: client_application_traffic_secret
         access: w
-      - name: server_application_traffic_secret_0
+      - name: server_application_traffic_secret
         access: w
       - name: resumption_master_secret
         access: w
@@ -985,10 +985,10 @@ states:
       - Erase finished_key
       - Create Finished with verify_data
       - Send Finished to record_out
-      - Send client_application_traffic_secret_0 to record_out as client_write_key
-      - Erase client_application_traffic_secret_0
-      - Send server_application_traffic_secret_0 to record_out as server_write_key
-      - Erase server_application_traffic_secret_0
+      - Send client_application_traffic_secret to record_out as client_write_key
+      - Erase client_application_traffic_secret
+      - Send server_application_traffic_secret to record_out as server_write_key
+      - Erase server_application_traffic_secret
     channels:
       - name: record_out
         access: w
@@ -998,13 +998,14 @@ states:
         access: r
       - name: derived_handshake_secret
         access: rw
-      - name: client_application_traffic_secret_0
+      - name: client_application_traffic_secret
         access: rw
-      - name: server_application_traffic_secret_0
+      - name: server_application_traffic_secret
         access: rw
     transitions:
       - target: CONNECTED
 
+# FIXME: send KeyUpdate (periodically) based on configuration
   - name: CONNECTED
     desc:
       - Read PostHandshakeMessage from record_in
@@ -1019,7 +1020,7 @@ states:
         condition: NewSessionTicket received
       - target: CONNECTED.PHA
         condition: CertificateRequest received
-      - target: CONNECTED.KU
+      - target: CONNECTED.KEY_UPDATE
         condition: KeyUpdate received
       - target: SEND_ALERT_UNEXPECTED_MESSAGE
         condition: unexpected message received
@@ -1067,13 +1068,12 @@ states:
     transitions:
       - target: CONNECTED
 
-  - name: CONNECTED.KU
+  - name: CONNECTED.KEY_UPDATE
     desc:
       - Copy PostHandshakeMessage to KeyUpdate
-      - Parse KeyUpdate
-      - Derive server_application_traffic_secret_N+1
-      - Send server_application_traffic_secret_N+1 to record_out as K_recv
-      - Read KeyUpdate.request_update
+      - server_application_traffic_secret = HKDF-Expand-Label(server_application_traffic_secret, "traffic upd", "", hash_length)
+      - Send server_application_traffic_secret to record_out as server_write_key
+      - Check KeyUpdate.request_update
     channels:
       - name: record_out
         access: w
@@ -1081,24 +1081,29 @@ states:
       - name: PostHandshakeMessage
         access: r
       - name: KeyUpdate
-        access: r
+        access: rw
+      - name: server_application_traffic_secret
+        access: rw
     transitions:
-      - target: CONNECTED.SEND_KU
+      - target: CONNECTED.SEND_KEY_UPDATE
         condition: KeyUpdate.request_update == update_requested
       - target: SEND_ALERT_ILLEGAL_PARAMETER
         condition: KeyUpdate.request_update invalid
+      - target: CONNECTED
 
-  - name: CONNECTED.SEND_KU
+  - name: CONNECTED.SEND_KEY_UPDATE
     desc:
-      - Derive client_application_traffic_secret_N+1
-      - Create and send KeyUpdate with request_update := update_not_requested
-      - Send client_application_traffic_secret_N+1 to record_out as K_send
+      - client_application_traffic_secret = HKDF-Expand-Label(client_application_traffic_secret, "traffic upd", "", hash_length)
+      - Create and send KeyUpdate with request_update := update_not_requested to record_out
+      - Send client_application_traffic_secret to record_out as client_write_key
     channels:
       - name: record_out
         access: w
     data:
       - name: KeyUpdate
         access: w
+      - name: client_application_traffic_secret
+        access: rw
     transitions:
       - target: CONNECTED
 
