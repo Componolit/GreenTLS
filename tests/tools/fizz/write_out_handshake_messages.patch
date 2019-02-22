@@ -1,0 +1,37 @@
+diff --git fizz/record/RecordLayer.cpp fizz/record/RecordLayer.cpp
+index 0e8136c..8000519 100644
+--- fizz/record/RecordLayer.cpp
++++ fizz/record/RecordLayer.cpp
+@@ -6,6 +6,8 @@
+  *  LICENSE file in the root directory of this source tree.
+  */
+ 
++#include <fstream>
++
+ #include <fizz/record/RecordLayer.h>
+ 
+ namespace fizz {
+@@ -96,6 +98,8 @@ Param parse<ServerHello>(Buf handshakeMsg, Buf original) {
+   }
+ }
+ 
++static int t = 0;
++
+ folly::Optional<Param> ReadRecordLayer::decodeHandshakeMessage(
+     folly::IOBufQueue& buf) {
+   folly::io::Cursor cursor(buf.front());
+@@ -108,6 +112,14 @@ folly::Optional<Param> ReadRecordLayer::decodeHandshakeMessage(
+       static_cast<HandshakeType>(cursor.readBE<HandshakeTypeType>());
+   auto length = detail::readBits24(cursor);
+ 
++  folly::io::Cursor mycursor(buf.front());
++  std::string filename = std::string("rcvd_handshake_msg_").append(std::to_string(t)).append(".raw");
++  std::ofstream fout;
++  fout.open(filename, std::ios::binary | std::ios::out);
++  fout.write((char*) mycursor.data(), length + 4);
++  fout.close();
++  t++;
++
+   if (length > kMaxHandshakeSize) {
+     throw std::runtime_error("handshake record too big");
+   }
