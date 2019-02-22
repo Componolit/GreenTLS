@@ -1,0 +1,20 @@
+with "aunit";
+
+project Test is
+
+    for Source_Dirs use ("generated", "tests");
+    for Object_Dir use "build";
+    for Create_Missing_Dirs use "True";
+    for Main use ("test.adb");
+
+    package Prove  is
+        for Switches use
+        (
+            "-j0",              -- Use all cores
+            "--level=1",        -- Use all provers, short timeout
+            "--warnings=error", -- Treat warnings as errors
+            "-U"                -- Analyze all files
+        );
+    end Prove;
+
+end Test;

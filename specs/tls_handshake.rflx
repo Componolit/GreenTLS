@@ -1,0 +1,295 @@
+package TLS_Handshake is
+
+   type Handshake_Type is (
+      HANDSHAKE_CLIENT_HELLO => 1,
+      HANDSHAKE_SERVER_HELLO => 2,
+      HANDSHAKE_NEW_SESSION_TICKET => 4,
+      HANDSHAKE_END_OF_EARLY_DATA => 5,
+      HANDSHAKE_ENCRYPTED_EXTENSIONS => 8,
+      HANDSHAKE_CERTIFICATE => 11,
+      HANDSHAKE_CERTIFICATE_REQUEST => 13,
+      HANDSHAKE_CERTIFICATE_VERIFY => 15,
+      HANDSHAKE_FINISHED => 20,
+      HANDSHAKE_KEY_UPDATE => 24,
+      HANDSHAKE_MESSAGE_HASH => 254
+   ) with Size => 8;
+
+   type Length_Type is mod 2**24;
+
+   type Handshake is
+      message
+         Tag : Handshake_Type;
+         Length : Length_Type
+            then Payload
+               with Length => Length * 8;
+         Payload : Payload_Type;
+      end message;
+
+   -- Extensions
+
+   type Extension_Type is (
+      EXTENSION_SERVER_NAME => 0,
+      EXTENSION_MAX_FRAGMENT_LENGTH => 1,
+      EXTENSION_STATUS_REQUEST => 5,
+      EXTENSION_SUPPORTED_GROUPS => 10,
+      EXTENSION_SIGNATURE_ALGORITHMS => 13,
+      EXTENSION_USE_SRTP => 14,
+      EXTENSION_HEARTBEAT => 15,
+      EXTENSION_APPLICATION_LAYER_PROTOCOL_NEGOTIATION => 16,
+      EXTENSION_SIGNED_CERTIFICATE_TIMESTAMP => 18,
+      EXTENSION_CLIENT_CERTIFICATE_TYPE => 19,
+      EXTENSION_SERVER_CERTIFICATE_TYPE => 20,
+      EXTENSION_PADDING => 21,
+      EXTENSION_PRE_SHARED_KEY => 41,
+      EXTENSION_EARLY_DATA => 42,
+      EXTENSION_SUPPORTED_VERSIONS => 43,
+      EXTENSION_COOKIE => 44,
+      EXTENSION_PSK_KEY_EXCHANGE_MODES => 45,
+      EXTENSION_CERTIFICATE_AUTHORITIES => 47,
+      EXTENSION_OID_FILTERS => 48,
+      EXTENSION_POST_HANDSHAKE_AUTH => 49,
+      EXTENSION_SIGNATURE_ALGORITHMS_CERT => 50,
+      EXTENSION_KEY_SHARE => 51
+   ) with Size => 16, Always_Valid;
+
+   type Extension_Data_Length_Type is range 0 .. 2**16 - 1 with Size => 16;
+
+   type Extension is
+      message
+         Tag : Extension_Type;  -- FIXME: Extension_Base_Type /= Extension_Type; constants?
+         Extension_Data_Length : Extension_Data_Length_Type
+            then Extension_Data
+               with Length => Extension_Data_Length;
+         Extension_Data : Payload_Type;
+      end message;
+
+   --  type Heartbeat_In_Extension is Extension (Extension_Data => Heartbeat_Extension)
+   --     if Tag = HEARTBEAT;
+
+   -- Key Exchange Messages
+
+   type Protocol_Version_Type is (TLS_1_0 => 16#0301#, TLS_1_1 => 16#0302#, TLS_1_2 => 16#0303#, TLS_1_3 => 16#0304#) with Size => 16;
+   type Legacy_Session_ID_Length_Type is range 0 .. 32 with Size => 8;
+   type Cipher_Suites_Length_Type is range 2 .. 2**16 - 2 with Size => 16;
+   type Legacy_Compression_Methods_Length_Type is range 1 .. 2**8 - 1 with Size => 8;
+   type Client_Hello_Extensions_Length_Type is range 8 .. 2**16 - 1 with Size => 16;
+   type Extensions is array of Extension;
+
+   type Client_Hello is
+      message
+         Legacy_Version : Protocol_Version_Type
+            then Random
+               with Length => 32 * 8
+               if Legacy_Version = TLS_1_2;
+         Random : Payload_Type;
+         Legacy_Session_ID_Length : Legacy_Session_ID_Length_Type
+            then Legacy_Session_ID
+               with Length => Legacy_Session_ID_Length * 8;
+         Legacy_Session_ID : Payload_Type;
+         Cipher_Suites_Length : Cipher_Suites_Length_Type
+            then Cipher_Suites
+               with Length => Cipher_Suites_Length * 8;
+         Cipher_Suites : Payload_Type;
+         Legacy_Compression_Methods_Length : Legacy_Compression_Methods_Length_Type
+            then Legacy_Compression_Methods
+               with Length => Legacy_Compression_Methods_Length * 8;
+         Legacy_Compression_Methods : Payload_Type
+            then null
+               if Message'Last / 8 = Legacy_Compression_Methods'Last / 8,
+            then Extensions_Length
+               if Message'Last / 8 /= Legacy_Compression_Methods'Last / 8;
+         Extensions_Length : Client_Hello_Extensions_Length_Type
+            then Extensions
+               with Length => Extensions_Length * 8;
+         Extensions : Extensions;
+      end message;
+
+   type Client_Hello_Handshake is new Handshake (Payload => Client_Hello)
+      if Tag = HANDSHAKE_CLIENT_HELLO;
+
+   type Cipher_Suite_Type is mod 2**16;
+   type Legacy_Compression_Method_Type is range 0 .. 0 with Size => 8;
+   type Server_Hello_Extensions_Length_Type is range 6 .. 2**16 - 1 with Size => 16;
+
+   type Server_Hello is
+      message
+         Legacy_Version : Protocol_Version_Type
+            then Random
+               with Length => 32 * 8
+               if Legacy_Version = TLS_1_2;
+         Random : Payload_Type;
+         Legacy_Session_ID_Length : Legacy_Session_ID_Length_Type
+            then Legacy_Session_ID
+               with Length => Legacy_Session_ID_Length * 8;
+         Legacy_Session_ID : Payload_Type;
+         Cipher_Suite : Cipher_Suite_Type;
+         Legacy_Compression_Method : Legacy_Compression_Method_Type;
+         Extensions_Length : Server_Hello_Extensions_Length_Type
+            then Extensions
+               with Length => Extensions_Length * 8;
+         Extensions : Extensions;
+      end message;
+
+   type Server_Hello_Handshake is new Handshake (Payload => Server_Hello)
+      if Tag = HANDSHAKE_SERVER_HELLO;
+
+   -- Server Parameters
+
+   type Encrypted_Extensions_Length_Type is range 0 .. 2**16 - 1 with Size => 16;
+
+   type Encrypted_Extensions is
+      message
+         Length : Encrypted_Extensions_Length_Type
+            then Extensions
+               with Length => Length * 8;
+         Extensions : Extensions;
+      end message;
+
+   type Encrypted_Extensions_Handshake is new Handshake (Payload => Encrypted_Extensions)
+      if Tag = HANDSHAKE_ENCRYPTED_EXTENSIONS;
+
+   type Certificate_Request_Context_Length_Type is range 0 .. 2**8 - 1 with Size => 8;
+   type Certificate_Request_Extensions_Length_Type is range 2 .. 2**16 - 1 with Size => 16;
+
+   type Certificate_Request is
+      message
+         Certificate_Request_Context_Length : Certificate_Request_Context_Length_Type
+            then Certificate_Request_Context
+               with Length => Certificate_Request_Context_Length * 8;
+         Certificate_Request_Context : Payload_Type;
+         Extensions_Length : Certificate_Request_Extensions_Length_Type
+            then Extensions
+               with Length => Extensions_Length * 8;
+         Extensions : Extensions;
+      end message;
+
+   type Certificate_Request_Handshake is new Handshake (Payload => Certificate_Request)
+      if Tag = HANDSHAKE_CERTIFICATE_REQUEST;
+
+   -- Authentication Messages
+
+   type Certificate_Type is (X509 => 0, RAW_PUBLIC_KEY => 2) with Size => 8;
+   type ASN1_Subject_Public_Key_Info_Length_Type is range 1 .. 2**24 - 1 with Size => 24;
+   type Cert_Data_Length_Type is range 1 .. 2**24 - 1 with Size => 24;
+   type Certificate_Extensions_Length_Type is range 0 .. 2**16 - 1 with Size => 16;
+
+   type Certificate_Entry is
+      message
+         Cert_Data_Length : Cert_Data_Length_Type
+            then Cert_Data
+               with Length => Cert_Data_Length * 8;
+         Cert_Data : Payload_Type
+            then Extensions_Length;
+         Extensions_Length : Certificate_Extensions_Length_Type
+            then Extensions
+               with Length => Extensions_Length * 8;
+         Extensions : Extensions;
+      end message;
+
+   type Certificate_List_Length_Type is range 0 .. 2**24 - 1 with Size => 24;
+   type Certificate_Entries is array of Certificate_Entry;
+
+   type Certificate is
+      message
+         Certificate_Request_Context_Length : Certificate_Request_Context_Length_Type
+            then Certificate_Request_Context
+               with Length => Certificate_Request_Context_Length * 8;
+         Certificate_Request_Context : Payload_Type;
+         Certificate_List_Length : Certificate_List_Length_Type
+            then Certificate_List
+               with Length => Certificate_List_Length * 8;
+         Certificate_List : Certificate_Entries;
+      end message;
+
+   type Certificate_Handshake is new Handshake (Payload => Certificate)
+      if Tag = HANDSHAKE_CERTIFICATE;
+
+   type Signature_Scheme is (
+      RSA_PKCS1_SHA256 => 16#0401#,
+      RSA_PKCS1_SHA384 => 16#0501#,
+      RSA_PKCS1_SHA512 => 16#0601#,
+      ECDSA_SECP256R1_SHA256 => 16#0403#,
+      ECDSA_SECP384R1_SHA384 => 16#0503#,
+      ECDSA_SECP521R1_SHA512 => 16#0603#,
+      RSA_PSS_RSAE_SHA256 => 16#0804#,
+      RSA_PSS_RSAE_SHA384 => 16#0805#,
+      RSA_PSS_RSAE_SHA512 => 16#0806#,
+      ED25519 => 16#0807#,
+      ED448 => 16#0808#,
+      RSA_PSS_PSS_SHA256 => 16#0809#,
+      RSA_PSS_PSS_SHA384 => 16#080A#,
+      RSA_PSS_PSS_SHA512 => 16#080B#,
+      RSA_PKCS1_SHA1 => 16#0201#,
+      ECDSA_SHA1 => 16#0203#
+   ) with Size => 16;
+
+   type Signature_Length_Type is range 0 .. 2**16 - 1 with Size => 16;
+
+   type Certificate_Verify is
+      message
+         Algorithm : Signature_Scheme;
+         Signature_Length : Signature_Length_Type
+            then Signature
+               with Length => Signature_Length * 8;
+         Signature : Payload_Type;
+      end message;
+
+   type Certificate_Verify_Handshake is new Handshake (Payload => Certificate_Verify)
+      if Tag = HANDSHAKE_CERTIFICATE_VERIFY;
+
+   type Finished is
+      message
+         null
+            then Verify_Data
+               with Length => Message'Length;
+         Verify_Data : Payload_Type;  -- FIXME: length depends on used hash function
+      end message;
+
+   type Finished_Handshake is new Handshake (Payload => Finished)
+      if Tag = HANDSHAKE_FINISHED;
+
+   -- End of Early Data
+
+   type End_Of_Early_Data_Handshake is new Handshake (Payload => null)
+      if Tag = HANDSHAKE_END_OF_EARLY_DATA;
+
+   -- Post-Handshake Messages
+
+   type Ticket_Lifetime_Type is mod 2**32;
+   type Ticket_Age_Add_Type is mod 2**32;
+   type Ticket_Nonce_Length_Type is range 0 .. 255 with Size => 8;
+   type Ticket_Length_Type is range 1 .. 2**16 - 1 with Size => 16;
+   type New_Session_Ticket_Extensions_Length_Type is range 0 .. 2**16 - 2 with Size => 16;
+
+   type New_Session_Ticket is
+      message
+         Ticket_Lifetime : Ticket_Lifetime_Type;
+         Ticket_Age_Add : Ticket_Age_Add_Type;
+         Ticket_Nonce_Length : Ticket_Nonce_Length_Type
+            then Ticket_Nonce
+               with Length => Ticket_Nonce_Length * 8;
+         Ticket_Nonce : Payload_Type;
+         Ticket_Length : Ticket_Length_Type
+            then Ticket
+               with Length => Ticket_Length * 8;
+         Ticket : Payload_Type;
+         Extensions_Length : New_Session_Ticket_Extensions_Length_Type
+            then Extensions
+               with Length => Extensions_Length * 8;
+         Extensions : Payload_Type;
+      end message;
+
+   type New_Session_Ticket_Handshake is new Handshake (Payload => New_Session_Ticket)
+      if Tag = HANDSHAKE_NEW_SESSION_TICKET;
+
+   type Key_Update_Request is (UPDATE_NOT_REQUESTED => 0, UPDATE_REQUESTED => 1) with Size => 8;
+
+   type Key_Update is
+      message
+         Request_Update : Key_Update_Request;
+      end message;
+
+   type Key_Update_Handshake is new Handshake (Payload => Key_Update)
+      if Tag = HANDSHAKE_KEY_UPDATE;
+
+end TLS_Handshake;

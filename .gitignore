@@ -1,3 +1,7 @@
+# Directories
+build/
+generated/
+
 # Object file
 *.o
 

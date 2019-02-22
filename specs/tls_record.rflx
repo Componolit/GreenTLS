@@ -1,0 +1,46 @@
+package TLS_Record is
+
+   type Content_Type is (INVALID => 0, CHANGE_CIPHER_SPEC => 20, ALERT => 21, HANDSHAKE => 22, APPLICATION_DATA => 23, HEARTBEAT => 24) with Size => 8;
+   type Protocol_Version_Type is (TLS_1_0 => 16#0301#, TLS_1_1 => 16#0302#, TLS_1_2 => 16#0303#, TLS_1_3 => 16#0304#) with Size => 16;
+   type Length_Type is mod 2**16;
+
+   type TLS_Plaintext is
+      message
+         Tag : Content_Type;
+         Legacy_Record_Version : Protocol_Version_Type;
+         Length : Length_Type
+            then Fragment
+               with Length => Length * 8
+               if Tag /= CHANGE_CIPHER_SPEC and Length <= 2**14,
+            then Fragment
+               with Length => Length * 8
+               if Tag = CHANGE_CIPHER_SPEC and Length = 1;  -- TODO: put in refinement
+         Fragment : Payload_Type;
+      end message;
+
+   type TLS_Inner_Plaintext is
+      message
+         --  null
+         --     then Content
+         --        with Length => Message'Length - Tag'Length;
+         --  Content : Payload_Type;
+         Tag : Content_Type;
+         --  FIXME: Add missing padding
+      end message;
+
+   type TLS_Ciphertext is
+      message
+         Tag : Content_Type
+            then Legacy_Record_Version
+               if Tag = APPLICATION_DATA;
+         Legacy_Record_Version : Protocol_Version_Type
+            then Length
+               if Legacy_Record_Version = TLS_1_2;
+         Length : Length_Type
+            then Encrypted_Record
+               with Length => Length * 8
+               if Length <= 2**14 + 256;
+         Encrypted_Record : Payload_Type;
+      end message;
+
+end TLS_Record;
