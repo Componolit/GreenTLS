@@ -1,3 +1,4 @@
+# FIXME: race condition on KeyUpdate from server. stopping processing of application data when KeyUpdate message received. restart when key updated from Handshake layer.
 initial: START
 final: FINAL
 states:
