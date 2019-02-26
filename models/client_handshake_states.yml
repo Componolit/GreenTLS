@@ -127,7 +127,7 @@ states:
 
   - name: START.SEND
     desc:
-      - Read configuration regarding post_handshake_auth and add post_handshake_auth to extensions_list if enabled
+      - Read configuration.post_handshake_auth_enabled and add post_handshake_auth to extensions_list if enabled
       - Create ClientHello message with default values
       - Read 32 bytes from rng_in and store in ClientHello.random
       - Read list of supported symmetric cipher options from configuration and store list in ClientHello.cipher_suites
@@ -612,8 +612,6 @@ states:
         access: r
       - name: CertificateRequest
         access: rw
-      - name: transcript_hash
-        access: rw
       - name: certificate_request_received
         access: w
     transitions:
@@ -856,6 +854,8 @@ states:
         access: w
       - name: transcript_hash
         access: r
+      - name: derived_handshake_secret
+        access: rw
       - name: client_application_traffic_secret
         access: w
       - name: server_application_traffic_secret
@@ -967,6 +967,9 @@ states:
       - Create CertificateVerify with transcript_hash using selected algorithm
       - Send CertificateVerify to record_out
       - Update transcript_hash with CertificateVerify
+    channels:
+      - name: record_out
+        access: w
     data:
       - name: signature_algorithms
         access: r
@@ -986,18 +989,16 @@ states:
       - Create Finished with verify_data
       - Send Finished to record_out
       - Send client_application_traffic_secret to record_out as client_write_key
-      - Erase client_application_traffic_secret
       - Send server_application_traffic_secret to record_out as server_write_key
       - Erase server_application_traffic_secret
     channels:
       - name: record_out
         access: w
+    data:
       - name: finished_key
         access: rw
       - name: transcript_hash
         access: r
-      - name: derived_handshake_secret
-        access: rw
       - name: client_application_traffic_secret
         access: rw
       - name: server_application_traffic_secret
@@ -1016,16 +1017,18 @@ states:
       - name: PostHandshakeMessage
         access: w
     transitions:
-      - target: CONNECTED.NST
+      - target: CONNECTED.NEW_SESSION_TICKET
         condition: NewSessionTicket received
-      - target: CONNECTED.PHA
-        condition: CertificateRequest received
+      - target: CONNECTED.POST_HANDSHAKE_AUTH
+        condition: CertificateRequest received and configuration.post_handshake_auth_enabled = True
+      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: CertificateRequest received and configuration.post_handshake_auth_enabled = False
       - target: CONNECTED.KEY_UPDATE
         condition: KeyUpdate received
       - target: SEND_ALERT_UNEXPECTED_MESSAGE
         condition: unexpected message received
 
-  - name: CONNECTED.NST
+  - name: CONNECTED.NEW_SESSION_TICKET
     desc:
       - Copy PostHandshakeMessage to NewSessionTicket
       - psk := HKDF-Expand-Label(resumption_master_secret, "resumption", NewSessionTicket.ticket_nonce, hash_length)
@@ -1045,26 +1048,223 @@ states:
     transitions:
       - target: CONNECTED
 
-  - name: CONNECTED.PHA
+  - name: CONNECTED.POST_HANDSHAKE_AUTH
     desc:
-      - Copy PostHandshakeMessage to CertificateRequest
-      - Read configuration regarding post_handshake_auth
+      - Copy PostHandshakeMessage to PhaCertificateRequest
     data:
       - name: PostHandshakeMessage
         access: r
-      - name: CertificateRequest
+      - name: PhaCertificateRequest
         access: rw
     transitions:
-      - target: SEND_ALERT_UNEXPECTED_MESSAGE
-        condition: post_handshake_auth not enabled
-      - target: CONNECTED.PHA_2
+      - target: CONNECTED.PHA_PARSE_CR
 
-  - name: CONNECTED.PHA_2
+  - name: CONNECTED.PHA_PARSE_CR
     desc:
-      - Create and send Certificate, CertificateVerify (if Certificate non-empty), and Finished to record_out
+      - Parse extensions from PhaCertificateRequest
+      - Check next extensions, skip if unknown  # FIXME: signed_certificate_timestamp not supported
+    data:
+      - name: PhaCertificateRequest
+        access: rw
+    transitions:
+      - target: CONNECTED.PHA_PARSE_CR.PARSE_STATUS_REQUEST
+        condition: status_request extension found
+      - target: CONNECTED.PHA_PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
+        condition: certificate_authorities extension found
+      - target: CONNECTED.PHA_PARSE_CR.PARSE_OID_FILTERS
+        condition: oid_filters extension found
+      - target: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
+        condition: signature_algorithms extension found
+      - target: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
+        condition: signature_algorithms_cert extension found
+      - target: CONNECTED.PHA_PARSE_CR.CHECK_EXTENSIONS
+        condition: no further extensions
+
+  - name: CONNECTED.PHA_PARSE_CR.PARSE_STATUS_REQUEST
+    desc:
+      - Set pha_status_request_received := True
+      - Store pha_status_request
+    data:
+      - name: pha_status_request_received
+        access: w
+      - name: pha_status_request
+        access: w
+    transitions:
+      - target: CONNECTED.PHA_PARSE_CR
+
+  - name: CONNECTED.PHA_PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
+    desc:
+      - Set pha_certificate_authorities_received := True
+      - Store pha_certificate_authorities
+    data:
+      - name: pha_certificate_authorities_received
+        access: w
+      - name: pha_certificate_authorities
+        access: w
+    transitions:
+      - target: CONNECTED.PHA_PARSE_CR
+
+  - name: CONNECTED.PHA_PARSE_CR.PARSE_OID_FILTERS
+    desc:
+      - Set pha_oid_filters_received := True
+      - Store pha_oid_filters
+    data:
+      - name: pha_oid_filters_received
+        access: w
+      - name: pha_oid_filters
+        access: w
+    transitions:
+      - target: CONNECTED.PHA_PARSE_CR
+
+  - name: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
+    desc:
+      - Set pha_signature_algorithms_received := True
+      - Store pha_signature_algorithms
+    data:
+      - name: pha_signature_algorithms_received
+        access: w
+      - name: pha_signature_algorithms
+        access: w
+    transitions:
+      - target: SEND_ALERT_ILLEGAL_PARAMETER
+        condition: no supported signature algorithm
+      - target: CONNECTED.PHA_PARSE_CR
+
+  - name: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
+    desc:
+      - Set pha_signature_algorithms_cert_received := True
+      - Store pha_signature_algorithms_cert
+    data:
+      - name: pha_signature_algorithms_cert_received
+        access: w
+      - name: pha_signature_algorithms_cert
+        access: w
+    transitions:
+      - target: CONNECTED.PHA_PARSE_CR
+
+  - name: CONNECTED.PHA_PARSE_CR.CHECK_EXTENSIONS
+    desc:
+      - Copy transcript_hash to pha_transcript_hash
+      - Update pha_transcript_hash with PhaCertificateRequest
+      - Check if signature_algorithms_received = True
+    data:
+      - name: PhaCertificateRequest
+        access: r
+      - name: pha_signature_algorithms_received
+        access: r
+      - name: transcript_hash
+        access: r
+      - name: pha_transcript_hash
+        access: rw
+    transitions:
+      - target: SEND_ALERT_MISSING_EXTENSION
+        condition: signature_algorithms_received = False
+      - target: CONNECTED.PHA_CHECK_CERTIFICATE_CONDITIONS
+
+  - name: CONNECTED.PHA_CHECK_CERTIFICATE_CONDITIONS
+    desc:
+      - Read available pha_certificates from configuration
+      - Filter pha_certificates compatible with pha_certificate_authorities if pha_certificate_authorities_received
+      - Filter pha_certificates compatible with pha_oid_filters if pha_oid_filters_received
+      - Filter pha_certificates compatible with pha_signature_algorithms if pha_signature_algorithms_received and not signature_algorithms_cert_received
+      - Filter pha_certificates compatible with pha_signature_algorithms_cert if pha_signature_algorithms_cert_received
+    data:
+      - name: configuration
+        access: r
+      - name: pha_certificates
+        access: rw
+      - name: pha_certificate_authorities
+        access: r
+      - name: pha_certificate_authorities_received
+        access: r
+      - name: pha_oid_filters
+        access: r
+      - name: pha_oid_filters_received
+        access: r
+      - name: pha_signature_algorithms
+        access: r
+      - name: pha_signature_algorithms_received
+        access: r
+      - name: pha_signature_algorithms_cert
+        access: r
+      - name: pha_signature_algorithms_cert_received
+        access: r
+    transitions:
+      - target: CONNECTED.PHA_SEND_CERTIFICATE
+        condition: pha_certificates is non-empty
+      - target: CONNECTED.PHA_SEND_EMPTY_CERTIFICATE
+        condition: pha_certificates is empty
+
+  - name: CONNECTED.PHA_SEND_CERTIFICATE
+    desc:
+      - Do OCSP request based on selected certificate and pha_status_request if pha_status_request_received
+      - Create PhaCertificate using configuration
+      - Send PhaCertificate to record_out
     channels:
       - name: record_out
         access: w
+    data:
+      - name: pha_certificates
+        access: rw
+      - name: PhaCertificate
+        access: rw
+      - name: configuration
+        access: r
+      - name: pha_status_request
+        access: r
+      - name: pha_status_request_received
+        access: r
+    transitions:
+      - target: CONNECTED.PHA_SEND_CERTIFICATE_VERIFY
+
+  - name: CONNECTED.PHA_SEND_EMPTY_CERTIFICATE
+    desc:
+      - Create empty PhaCertificate
+      - Send PhaCertificate to record_out
+    channels:
+      - name: record_out
+        access: w
+    data:
+      - name: PhaCertificate
+        access: w
+    transitions:
+      - target: CONNECTED.PHA_SEND_FINISHED
+
+  - name: CONNECTED.PHA_SEND_CERTIFICATE_VERIFY
+    desc:
+      - Select one algorithm of pha_signature_algorithms
+      - Create PhaCertificateVerify with pha_transcript_hash using selected algorithm
+      - Send PhaCertificateVerify to record_out
+    channels:
+      - name: record_out
+        access: w
+    data:
+      - name: pha_signature_algorithms
+        access: r
+      - name: PhaCertificateVerify
+        access: rw
+      - name: pha_transcript_hash
+        access: r
+    transitions:
+      - target: CONNECTED.PHA_SEND_FINISHED
+
+  - name: CONNECTED.PHA_SEND_FINISHED
+    desc:
+      - finished_key := HKDF-Expand-Label(client_application_traffic_secret, "finished", "", hash_length)
+      - verify_data := HMAC(finished_key, pha_transcript_hash)
+      - Erase finished_key
+      - Create Finished with verify_data
+      - Send Finished to record_out
+    channels:
+      - name: record_out
+        access: w
+    data:
+      - name: finished_key
+        access: rw
+      - name: pha_transcript_hash
+        access: r
+      - name: client_application_traffic_secret
+        access: rw
     transitions:
       - target: CONNECTED
 
