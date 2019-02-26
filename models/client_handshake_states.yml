@@ -2,136 +2,88 @@ initial: START
 final: FINAL
 # FIXME: "A peer which receives a handshake message in an unexpected order MUST abort the handshake with an "unexpected_message" alert."
 # FIXME: "In the event that a client requests additional functionality using extensions and this functionality is not supplied by the server, the client MAY abort the handshake."
+# FIXME: What is the semantic of channels?
 states:
   - name: START
-    desc:
-      - Set retry_request_received := False
-      - Set certificate_request_received := False
-      - Set server_name_received := False
-      - Set max_fragment_length_received := False
-      - Set early_data_received := False
-      - Set status_request_received := False
-      - Set certificate_authorities_received := False
-      - Set oid_filters_received := False
-      - Set signature_algorithms_received := False
-      - Set signature_algorithms_cert_received := False
-      - Set server_certificate_type := X509
-      - Read configuration from datastore_in
-      - Read server prefered groups from datastore_in
-      - Select supported_groups from server prefered groups and configuration.supported_groups
-      - Check for symmetric cipher options in configuration
-      - Read configuration.key_exchange_mode
-      - Initialize extensions_list with supported_versions = [0x0304]
-      - Read configuration and create extensions for Client Hello (server_name, max_fragment_length, status_request, supported_groups, signature_algorithms, use_srtp, heartbeat, application_layer_protocol_negotiation, client_certificate_type, server_certificate_type, padding, key_share, pre_shared_key, psk_key_exchange_modes, early_data, cookie, supported_versions, certificate_authorities, post_handshake_auth, signature_algorithms_cert)  # FIXME: signed_certificate_timestamp not supported
-    channels:
-      - name: datastore_in
-        access: r
-    data:
-      - name: retry_request_received
-        access: w
-      - name: certificate_request_received
-        access: w
-      - name: server_name_received
-        access: w
-      - name: max_fragment_length_received
-        access: w
-      - name: early_data_received
-        access: w
-      - name: status_request_received
-        access: w
-      - name: certificate_authorities_received
-        access: w
-      - name: oid_filters_received
-        access: w
-      - name: signature_algorithms_received
-        access: w
-      - name: signature_algorithms_cert_received
-        access: w
-      - name: server_certificate_type
-        access: w
-      - name: configuration
-        access: rw
-      - name: extensions_list
-        access: w
+    actions:
+      - retry_request_received := False
+      - certificate_request_received := False
+      - server_name_received := False
+      - max_fragment_length_received := False
+      - early_data_received := False
+      - status_request_received := False
+      - certificate_authorities_received := False
+      - oid_filters_received := False
+      - signature_algorithms_received := False
+      - signature_algorithms_cert_received := False
+      - server_certificate_type := X509
+      - connection := read(application_in)
+      - configuration := read(configuration_in)
+      - server_prefered_groups := read(datastore_in)
+      - supported_groups := select_supported_groups(server_prefered_groups, configuration.supported_groups)
+    transitions:
+      - target: INVALID_CONFIGURATION
+        condition: configuration.key_exchange_mode.length = 0
+      - target: INVALID_CONFIGURATION
+        condition: configuration.cipher_suites.length = 0
+      - target: CREATE_CLIENT_HELLO_EXTENSIONS
+
+  - name: CREATE_CLIENT_HELLO_EXTENSIONS
+      - extensions_list := list(supported_versions_extension(list(0x0304))))
+      - client_hello_extensions := create_client_hello_extensions(configuration)  # supported: server_name, max_fragment_length, status_request, supported_groups, signature_algorithms, use_srtp, heartbeat, application_layer_protocol_negotiation, client_certificate_type, server_certificate_type, padding, key_share, pre_shared_key, psk_key_exchange_modes, early_data, cookie, supported_versions, certificate_authorities, post_handshake_auth, signature_algorithms_cert | FIXME unsupported: signed_certificate_timestamp
+      - extensions_list := extend(extensions_list, client_hello_extensions)
     transitions:
       - target: START.DHE
-        condition: DHE configured
+        condition: configuration.dhe_enabled = True
       - target: START.PSK
-        condition: PSK configured
-      - target: INVALID_CONFIGURATION
-        condition: no valid exchange mode
-      - target: INVALID_CONFIGURATION
-        condition: no valid cipher suites
+        condition: configuration.psk_enabled = True
 
   - name: START.PSK
-    desc:
-      - Check for supported symmetric key identities and PSK key exchange modes from configuration
-    data:
-      - name: configuration
-        access: r
+    actions:
     transitions:
       - target: INVALID_CONFIGURATION
-        condition: no valid symmetric key identities
+        condition: configuration.symmetric_key_identities.length = 0
       - target: INVALID_CONFIGURATION
-        condition: no valid PSK key exchange modes
+        condition: configuration.psk_key_exchange_mode != "psk_dhe_ke" and configuration.psk_key_exchange_mode != "psk_ke"
       - target: START.PSK_EXTENSIONS
 
   - name: START.PSK_EXTENSIONS
-    desc:
-      - Read list of symmetric key identities from configuration
-      - Add pre_shared_key to extensions_list
-      - Read PSK key exchange modes from configuration
-      - Add psk_key_exchange_modes to extensions_list
-    data:
-      - name: configuration
-        access: r
-      - name: extensions_list
-        access: rw
+    actions:
+      - extensions_list := append(extensions_list, pre_shared_key_extension())  # FIXME: which input parameters are needed for pre_shared_key_extension?
+      - extensions_list := append(extensions_list, psk_key_exchange_modes_extension(configuration))
     transitions:
       - target: START.DHE
-        condition: PSK key exchange mode == psk_dhe_ke
+        condition: configuration.psk_key_exchange_mode = "psk_dhe_ke"
       - target: START.SEND
-        condition: PSK key exchange mode == psk_ke
+        condition: configuration.psk_key_exchange_mode = "psk_ke"
 
   - name: START.DHE
-    desc:
-      - Check for supported (EC)DHE groups and shares, signature algorithms and signature algorithms for certificates from configuration
-    data:
-      - name: configuration
-        access: r
+    actions:
     transitions:
       - target: INVALID_CONFIGURATION
-        condition: no valid (EC)DHE groups and shares
+        condition: configuration.supported_groups.length = 0
       - target: INVALID_CONFIGURATION
-        condition: no valid signature algorithms
+        condition: configuration.signature_algorithms.length = 0
+      - target: INVALID_CONFIGURATION
+        condition: configuration.signature_algorithms_cert.length = 0
       - target: START.DHE_EXTENSIONS
-        condition: valid configuration
 
   - name: START.DHE_EXTENSIONS
-    desc:
-      - Read supported (EC)DHE groups and shares from configuration
-      - Add supported_groups to extensions_list
-      - Create (EC)DHE share for some or all of supported groups
-      - Add key_share to extensions_list
-      - Read supported signature algorithms from configuration
-      - Add signature_algorithms to extensions_list
-      - Read supported signature algorithms for certificates from configuration
-      - Add signature_algorithms_cert to extensions_list  # if configured
-    data:
-      - name: configuration
-        access: r
-      - name: extensions_list
-        access: rw
+    actions:
+      - extensions_list := append(extensions_list, supported_groups_extension(configuration))
+      - extensions_list := append(extensions_list, key_share_extension(configuration))  # (EC)DHE share for some or all of supported groups
+      - extensions_list := append(extensions_list, signature_algorithms_extension(configuration))
+      - extensions_list := append(extensions_list, signature_algorithms_cert_extension(configuration))  # if configured
     transitions:
       - target: START.SEND
 
   - name: START.SEND
-    desc:
+    actions:  # FIXME: continue revision
       - Read configuration.post_handshake_auth_enabled and add post_handshake_auth to extensions_list if enabled
-      - Create ClientHello message with default values
-      - Read 32 bytes from rng_in and store in ClientHello.random
+      - ClientHello := ClientHello()
+      - ClientHello.random := read(rng_in, 32)  # 32 bytes
       - Read list of supported symmetric cipher options from configuration and store list in ClientHello.cipher_suites
-      - Set ClientHello.extensions to extensions_list
+      - ClientHello.extensions := extensions_list
       - Send ClientHello to record_out
       - Update transcript_hash with ClientHello
       - Read early data configuration
@@ -156,7 +108,7 @@ states:
         condition: early data configured
 
   - name: START.READ_PSK_FOR_EARLY_DATA
-    desc:
+    actions:
       - Read PSK from keystore_in
       - early_secret := HKDF-Extract(0, PSK)
       - Erase PSK
@@ -181,14 +133,14 @@ states:
       - target: WAIT_SH
 
   - name: WAIT_SH
-    desc:
+    actions:
       - Read ServerHello form record_in
       - Update transcript_hash with ServerHello
       - Parse ServerHello
       - Check ServerHello.legacy_version = 0x0303
       - Check ServerHello.legacy_session_id_echo = 0
       - Check ServerHello.legacy_compression_method = 0
-      - Set hash_length := ServerHello.cipher_suite.length
+      - hash_length := ServerHello.cipher_suite.length
     channels:
       - name: record_in
         access: r
@@ -213,7 +165,7 @@ states:
       - target: WAIT_SH.VERIFY
 
   - name: WAIT_SH.VERIFY
-    desc:
+    actions:
       - Check that ServerHello.cipher_suite is contained in ClientHello.cipher_suites
       - Check supported_versions in ServerHello.extensions
     data:
@@ -231,7 +183,7 @@ states:
       - target: WAIT_SH.CHECK_RETRY_REQUEST
 
   - name: WAIT_SH.CHECK_RETRY_REQUEST
-    desc:
+    actions:
       - Check ServerHello.random
     data:
       - name: ServerHello
@@ -246,7 +198,7 @@ states:
       - target: WAIT_SH.EXTENSIONS
 
   - name: WAIT_SH.EXTENSIONS
-    desc:
+    actions:
       - Check ServerHello.extensions does not contain any new extension compared to ClientHello.extensions
       - Read key exchange mode from configuration
     data:
@@ -263,7 +215,7 @@ states:
         condition: DHE and not PSK configured
 
   - name: WAIT_SH.EXTENSIONS_PSK
-    desc:
+    actions:
       - Check for pre_shared_key in ServerHello.extensions
       - Check selected_identity in pre_shared_key is in range of extensions_list['pre_shared_key']
       - Check ServerHello.cipher_suite indicates a Hash associated with the selected PSK (extensions_list['pre_shared_key'].OfferedPsks[selected_identity])
@@ -293,7 +245,7 @@ states:
         condition: selected_identity != 0 and early_data present
 
   - name: WAIT_SH.EXTENSIONS_DHE
-    desc:
+    actions:
       - Check key_share in ServerHello.extensions contains one of key_share in extensions_list
     data:
       - name: ServerHello
@@ -306,8 +258,8 @@ states:
       - target: WAIT_EE
 
   - name: WAIT_SH.PARSE_HRR
-    desc:
-      - Set retry_request_received := True
+    actions:
+      - retry_request_received := True
       - Check ServerHello.extensions does not contain any new extension compared to ClientHello.extensions except for cookie extension
       - If pre_shared_key exists in ServerHello.extensions, keep only keys associated with a hash in selected cipher suite
       - If key_share exists in ServerHello.extensions, check selected group corresponds to a group which was provided in supported_groups extension in ClientHello.extensions
@@ -341,7 +293,7 @@ states:
       - target: WAIT_SH
 
   - name: WAIT_EE
-    desc:
+    actions:
       - Calculate ecdh_key from ClientHello.key_share and ServerHello.key_share
       - derived_early_secret := Derive-Secret(early_secret, "derived", "")
       - Erase early_secret
@@ -380,7 +332,7 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE
-    desc:
+    actions:
       - Parse extensions from EncryptedExtensions
       - Check next extensions, skip if unknown
     data:
@@ -410,7 +362,7 @@ states:
         condition: no further extensions
 
   - name: WAIT_EE.CHECK_EXTENSIONS
-    desc:
+    actions:
       - Update transcript_hash with EncryptedExtensions
       - Check if configuration.server_name and server_name_received
       - Check if configuration.max_fragment_length and max_fragment_length_received
@@ -438,7 +390,7 @@ states:
       - target: WAIT_EE.DISPATCH
 
   - name: WAIT_EE.DISPATCH
-    desc:
+    actions:
       - Read configuration.key_exchange_mode
     data:
       - name: configuration
@@ -450,11 +402,11 @@ states:
         condition: certificates are used
 
   - name: WAIT_EE.PARSE_SERVER_NAME
-    desc:
+    actions:
       - Read server name from EncryptedExtensions
       - Read configuration.server_name
       - Check if server name has empty extension_data
-      - Set server_name_received := True
+      - server_name_received := True
     data:
       - name: EncryptedExtensions
         access: r
@@ -470,11 +422,11 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_MAX_FRAGMENT_LENGTH
-    desc:
+    actions:
       - Read max fragment length from EncryptedExtensions
       - Read configuration.max_fragment_length
       - Check if max fragment length matches configuration.max_fragment_length
-      - Set max_fragment_length_received := True
+      - max_fragment_length_received := True
     data:
       - name: EncryptedExtensions
         access: r
@@ -486,7 +438,7 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_SUPPORTED_GROUPS
-    desc:
+    actions:
       - Read supported groups from EncryptedExtensions
       - Send supported groups to datastore_out
     channels:
@@ -499,7 +451,7 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_HEARTBEAT
-    desc:
+    actions:
       - Read heartbeat from EncryptedExtensions
       - Create HeartbeatControlMessage containing heartbeat mode and configuration.heartbeat
       - Send HeartbeatControlMessage to heartbeat_control_out
@@ -515,7 +467,7 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION
-    desc:
+    actions:
       - Read application_layer_protocol_negotiation from EncryptedExtensions
       - Check only one protocol selected
       - Check selected protocol is one of proposed protocols from configuration
@@ -534,7 +486,7 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_CLIENT_CERTIFICATE_TYPE
-    desc:
+    actions:
       - Read client_certificate_type from EncryptedExtensions
       - Check selected type is one of proposed types from configuration
     data:
@@ -548,7 +500,7 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_SERVER_CERTIFICATE_TYPE
-    desc:
+    actions:
       - Read server_certificate_type from EncryptedExtensions
       - Check selected type is one of proposed types from configuration
     data:
@@ -564,9 +516,9 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: WAIT_EE.PARSE_EARLY_DATA
-    desc:
+    actions:
       - Read early_data from EncryptedExtensions
-      - Set early_data_received := True
+      - early_data_received := True
     data:
       - name: EncryptedExtensions
         access: r
@@ -576,7 +528,7 @@ states:
       - target: WAIT_EE.PARSE
 
   - name: NO_EARLY_DATA
-    desc:
+    actions:
       - Indicate no early data to application_out
     channels:
       - name: application_out
@@ -585,7 +537,7 @@ states:
       - target: WAIT_EE.DISPATCH
 
   - name: WAIT_CERT_CR
-    desc:
+    actions:
       - Read CertificateCrMessage from record_in
     channels:
       - name: record_in
@@ -602,9 +554,9 @@ states:
         condition: CertificateRequest received
 
   - name: PARSE_CR
-    desc:
-      - Set certificate_request_received := True
-      - Copy CertificateCrMessage to CertificateRequest
+    actions:
+      - certificate_request_received := True
+      - CertificateRequest := CertificateCrMessage
       - Parse extensions from CertificateRequest
       - Check next extensions, skip if unknown  # FIXME: signed_certificate_timestamp not supported
     data:
@@ -629,8 +581,8 @@ states:
         condition: no further extensions
 
   - name: PARSE_CR.PARSE_STATUS_REQUEST
-    desc:
-      - Set status_request_received := True
+    actions:
+      - status_request_received := True
       - Store status_request
     data:
       - name: status_request_received
@@ -641,8 +593,8 @@ states:
       - target: PARSE_CR
 
   - name: PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
-    desc:
-      - Set certificate_authorities_received := True
+    actions:
+      - certificate_authorities_received := True
       - Store certificate_authorities
     data:
       - name: certificate_authorities_received
@@ -653,8 +605,8 @@ states:
       - target: PARSE_CR
 
   - name: PARSE_CR.PARSE_OID_FILTERS
-    desc:
-      - Set oid_filters_received := True
+    actions:
+      - oid_filters_received := True
       - Store oid_filters
     data:
       - name: oid_filters_received
@@ -665,8 +617,8 @@ states:
       - target: PARSE_CR
 
   - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
-    desc:
-      - Set signature_algorithms_received := True
+    actions:
+      - signature_algorithms_received := True
       - Store signature_algorithms
     data:
       - name: signature_algorithms_received
@@ -679,8 +631,8 @@ states:
       - target: PARSE_CR
 
   - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
-    desc:
-      - Set signature_algorithms_cert_received := True
+    actions:
+      - signature_algorithms_cert_received := True
       - Store signature_algorithms_cert
     data:
       - name: signature_algorithms_cert_received
@@ -691,7 +643,7 @@ states:
       - target: PARSE_CR
 
   - name: PARSE_CR.CHECK_EXTENSIONS
-    desc:
+    actions:
       - Update transcript_hash with CertificateRequest
       - Check if signature_algorithms_received = True
     data:
@@ -707,7 +659,7 @@ states:
       - target: WAIT_CERT
 
   - name: WAIT_CERT
-    desc:
+    actions:
       - Read CertificateCrMessage from record_in
     channels:
       - name: record_in
@@ -724,8 +676,8 @@ states:
         condition: Certificate received
 
   - name: PARSE_CERT
-    desc:
-      - Copy CertificateCrMessage to Certificate
+    actions:
+      - Certificate := CertificateCrMessage
       - Update transcript_hash with Certificate
       - Check Certificate.certificate_list using server_certificate_type
     data:
@@ -747,7 +699,7 @@ states:
       - target: PARSE_CERT.PARSE_ENTRIES
 
   - name: PARSE_CERT.PARSE_ENTRIES
-    desc:
+    actions:
       - Parse CertificateEntry from CertificateRequest
       - Store CertificateEntry in CertificateList
       - Check next entry
@@ -764,7 +716,7 @@ states:
       - target: PARSE_CERT.PARSE_EXTENSIONS
 
   - name: PARSE_CERT.PARSE_EXTENSIONS
-    desc:
+    actions:
       - Parse CertificateEntry.extensions
       - Check next extensions, skip if unknown  # FIXME: signed_certificate_timestamp not supported
     data:
@@ -779,7 +731,7 @@ states:
         condition: no further extensions
 
   - name: PARSE_CERT.PARSE_STATUS_REQUEST
-    desc:
+    actions:
       - Read and verify CertificateStatus from CertificateEntry.extensions
     data:
       - name: CertificateEntry
@@ -788,7 +740,7 @@ states:
       - target: PARSE_CERT.PARSE_EXTENSIONS
 
   - name: PARSE_CERT.VERIFY_CERTIFICATE
-    desc:
+    actions:
       - Verify certificates and their status in CertificateList
     data:
       - name: CertificateList
@@ -802,7 +754,7 @@ states:
         condition: Certificate uses MD5 or is invalid
 
   - name: WAIT_CV
-    desc:
+    actions:
       - Read CertificateVerify from record_in
       - Ensure CertificateVerify.algorithm is one of configuration.signature_algorithms
       - Ensure CertificateVerify.algorithm is compatible to signature algorithm in Certificate
@@ -832,7 +784,7 @@ states:
       - target: WAIT_FINISHED
 
   - name: WAIT_FINISHED
-    desc:
+    actions:
       - Read Finished from record_in
       - finished_key := HKDF-Expand-Label(client_handshake_traffic_secret, "finished", "", hash_length)
       - verify_data := HMAC(finished_key, transcript_hash)
@@ -873,7 +825,7 @@ states:
         condition: early_data_received = False
 
   - name: SEND_END_OF_EARLY_DATA
-    desc:
+    actions:
       - Send EndOfEarlyData to record_out
     channels:
       - name: record_out
@@ -882,7 +834,7 @@ states:
       - target: CHECK_CERTIFICATE_CONDITIONS
 
   - name: CHECK_CERTIFICATE_CONDITIONS
-    desc:
+    actions:
       - Check certificate_request_received
       - Read available certificates from configuration
       - Filter certificates compatible with certificate_authorities if certificate_authorities_received
@@ -921,7 +873,7 @@ states:
         condition: certificate_request_received = True and certificates is empty
 
   - name: SEND_CERTIFICATE
-    desc:
+    actions:
       - Do OCSP request based on selected certificate and status_request if status_request_received
       - Create Certificate using configuration
       - Send Certificate to record_out
@@ -946,7 +898,7 @@ states:
       - target: SEND_CERTIFICATE_VERIFY
 
   - name: SEND_EMPTY_CERTIFICATE
-    desc:
+    actions:
       - Create empty Certificate
       - Send Certificate to record_out
       - Update transcript_hash with Certificate
@@ -962,7 +914,7 @@ states:
       - target: SEND_FINISHED
 
   - name: SEND_CERTIFICATE_VERIFY
-    desc:
+    actions:
       - Select one algorithm of signature_algorithms
       - Create CertificateVerify with transcript_hash using selected algorithm
       - Send CertificateVerify to record_out
@@ -981,7 +933,8 @@ states:
       - target: SEND_FINISHED
 
   - name: SEND_FINISHED
-    desc:
+    actions:
+      - record_out := send(client_handshake_traffic_secret, "server_write_key")
       - Send client_handshake_traffic_secret to record_out as server_write_key
       - Erase client_handshake_traffic_secret
       - verify_data := HMAC(finished_key, transcript_hash)
@@ -1008,31 +961,25 @@ states:
 
 # FIXME: send KeyUpdate (periodically) based on configuration
   - name: CONNECTED
-    desc:
-      - Read PostHandshakeMessage from record_in
-    channels:
-      - name: record_in
-        access: r
-    data:
-      - name: PostHandshakeMessage
-        access: w
+    actions:
+      - PostHandshakeMessage := read(record_in)
     transitions:
       - target: CONNECTED.NEW_SESSION_TICKET
-        condition: NewSessionTicket received
+        condition: PostHandshakeMessage.Tag = "NewSessionTicket"
       - target: CONNECTED.POST_HANDSHAKE_AUTH
-        condition: CertificateRequest received and configuration.post_handshake_auth_enabled = True
+        condition: PostHandshakeMessage.Tag = "CertificateRequest" and configuration.post_handshake_auth_enabled = True
       - target: SEND_ALERT_UNEXPECTED_MESSAGE
-        condition: CertificateRequest received and configuration.post_handshake_auth_enabled = False
+        condition: PostHandshakeMessage.Tag = "CertificateRequest" and configuration.post_handshake_auth_enabled = False
       - target: CONNECTED.KEY_UPDATE
-        condition: KeyUpdate received
+        condition: PostHandshakeMessage.Tag = "KeyUpdate"
       - target: SEND_ALERT_UNEXPECTED_MESSAGE
-        condition: unexpected message received
+        condition: PostHandshakeMessage.Tag != "NewSessionTicket" and PostHandshakeMessage.Tag != "CertificateRequest" and PostHandshakeMessage.Tag != "KeyUpdate"
 
   - name: CONNECTED.NEW_SESSION_TICKET
-    desc:
-      - Copy PostHandshakeMessage to NewSessionTicket
+    actions:
+      - NewSessionTicket := PostHandshakeMessage
       - psk := HKDF-Expand-Label(resumption_master_secret, "resumption", NewSessionTicket.ticket_nonce, hash_length)
-      - Store psk and NewSessionTicket to keystore_out
+      - keystore_out := send(psk, NewSessionTicket)
     channels:
       - name: keystore_out
         access: w
@@ -1049,8 +996,9 @@ states:
       - target: CONNECTED
 
   - name: CONNECTED.POST_HANDSHAKE_AUTH
-    desc:
-      - Copy PostHandshakeMessage to PhaCertificateRequest
+    actions:
+      - PhaCertificateRequest := PostHandshakeMessage
+      - pha_extension_position := 0
     data:
       - name: PostHandshakeMessage
         access: r
@@ -1060,91 +1008,65 @@ states:
       - target: CONNECTED.PHA_PARSE_CR
 
   - name: CONNECTED.PHA_PARSE_CR
-    desc:
-      - Parse extensions from PhaCertificateRequest
-      - Check next extensions, skip if unknown  # FIXME: signed_certificate_timestamp not supported
-    data:
-      - name: PhaCertificateRequest
-        access: rw
+    actions:
+      - pha_extension_type, pha_extension, pha_extension_position, pha_result := pha_parse_cr_extension(PhaCertificateRequest.extensions, pha_extension_position)
+      # FIXME: signed_certificate_timestamp not supported
     transitions:
       - target: CONNECTED.PHA_PARSE_CR.PARSE_STATUS_REQUEST
-        condition: status_request extension found
+        condition: pha_extension_type = "status_request"
       - target: CONNECTED.PHA_PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
-        condition: certificate_authorities extension found
+        condition: pha_extension_type = "certificate_authorities"
       - target: CONNECTED.PHA_PARSE_CR.PARSE_OID_FILTERS
-        condition: oid_filters extension found
+        condition: pha_extension_type = "oid_filters"
       - target: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
-        condition: signature_algorithms extension found
+        condition: pha_extension_type = "signature_algorithms"
       - target: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
-        condition: signature_algorithms_cert extension found
+        condition: pha_extension_type = "signature_algorithms_cert"
+      - target: CONNECTED.PHA_PARSE_CR
+        condition: pha_result = "unknown"
       - target: CONNECTED.PHA_PARSE_CR.CHECK_EXTENSIONS
-        condition: no further extensions
+        condition: pha_result = "end"
 
   - name: CONNECTED.PHA_PARSE_CR.PARSE_STATUS_REQUEST
-    desc:
-      - Set pha_status_request_received := True
-      - Store pha_status_request
-    data:
-      - name: pha_status_request_received
-        access: w
-      - name: pha_status_request
-        access: w
+    actions:
+      - pha_status_request_received := True
+      - pha_status_request := pha_extension
     transitions:
       - target: CONNECTED.PHA_PARSE_CR
 
   - name: CONNECTED.PHA_PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
-    desc:
-      - Set pha_certificate_authorities_received := True
-      - Store pha_certificate_authorities
-    data:
-      - name: pha_certificate_authorities_received
-        access: w
-      - name: pha_certificate_authorities
-        access: w
+    actions:
+      - pha_certificate_authorities_received := True
+      - pha_certificate_authorities := pha_extension
     transitions:
       - target: CONNECTED.PHA_PARSE_CR
 
   - name: CONNECTED.PHA_PARSE_CR.PARSE_OID_FILTERS
-    desc:
-      - Set pha_oid_filters_received := True
-      - Store pha_oid_filters
-    data:
-      - name: pha_oid_filters_received
-        access: w
-      - name: pha_oid_filters
-        access: w
+    actions:
+      - pha_oid_filters_received := True
+      - pha_oid_filters := pha_extension
     transitions:
       - target: CONNECTED.PHA_PARSE_CR
 
   - name: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
-    desc:
-      - Set pha_signature_algorithms_received := True
-      - Store pha_signature_algorithms
-    data:
-      - name: pha_signature_algorithms_received
-        access: w
-      - name: pha_signature_algorithms
-        access: w
+    actions:
+      - pha_signature_algorithms_received := True
+      - pha_signature_algorithms := pha_extension
     transitions:
       - target: SEND_ALERT_ILLEGAL_PARAMETER
         condition: no supported signature algorithm
       - target: CONNECTED.PHA_PARSE_CR
 
   - name: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
-    desc:
-      - Set pha_signature_algorithms_cert_received := True
-      - Store pha_signature_algorithms_cert
-    data:
-      - name: pha_signature_algorithms_cert_received
-        access: w
-      - name: pha_signature_algorithms_cert
-        access: w
+    actions:
+      - pha_signature_algorithms_cert_received := True
+      - pha_signature_algorithms_cert := pha_extension
     transitions:
       - target: CONNECTED.PHA_PARSE_CR
 
   - name: CONNECTED.PHA_PARSE_CR.CHECK_EXTENSIONS
-    desc:
-      - Copy transcript_hash to pha_transcript_hash
+    actions:
+      - pha_transcript_hash := transcript_hash
       - Update pha_transcript_hash with PhaCertificateRequest
       - Check if signature_algorithms_received = True
     data:
@@ -1162,7 +1084,7 @@ states:
       - target: CONNECTED.PHA_CHECK_CERTIFICATE_CONDITIONS
 
   - name: CONNECTED.PHA_CHECK_CERTIFICATE_CONDITIONS
-    desc:
+    actions:
       - Read available pha_certificates from configuration
       - Filter pha_certificates compatible with pha_certificate_authorities if pha_certificate_authorities_received
       - Filter pha_certificates compatible with pha_oid_filters if pha_oid_filters_received
@@ -1196,7 +1118,7 @@ states:
         condition: pha_certificates is empty
 
   - name: CONNECTED.PHA_SEND_CERTIFICATE
-    desc:
+    actions:
       - Do OCSP request based on selected certificate and pha_status_request if pha_status_request_received
       - Create PhaCertificate using configuration
       - Send PhaCertificate to record_out
@@ -1218,7 +1140,7 @@ states:
       - target: CONNECTED.PHA_SEND_CERTIFICATE_VERIFY
 
   - name: CONNECTED.PHA_SEND_EMPTY_CERTIFICATE
-    desc:
+    actions:
       - Create empty PhaCertificate
       - Send PhaCertificate to record_out
     channels:
@@ -1231,7 +1153,7 @@ states:
       - target: CONNECTED.PHA_SEND_FINISHED
 
   - name: CONNECTED.PHA_SEND_CERTIFICATE_VERIFY
-    desc:
+    actions:
       - Select one algorithm of pha_signature_algorithms
       - Create PhaCertificateVerify with pha_transcript_hash using selected algorithm
       - Send PhaCertificateVerify to record_out
@@ -1249,7 +1171,7 @@ states:
       - target: CONNECTED.PHA_SEND_FINISHED
 
   - name: CONNECTED.PHA_SEND_FINISHED
-    desc:
+    actions:
       - finished_key := HKDF-Expand-Label(client_application_traffic_secret, "finished", "", hash_length)
       - verify_data := HMAC(finished_key, pha_transcript_hash)
       - Erase finished_key
@@ -1269,8 +1191,8 @@ states:
       - target: CONNECTED
 
   - name: CONNECTED.KEY_UPDATE
-    desc:
-      - Copy PostHandshakeMessage to KeyUpdate
+    actions:
+      - KeyUpdate := PostHandshakeMessage
       - server_application_traffic_secret = HKDF-Expand-Label(server_application_traffic_secret, "traffic upd", "", hash_length)
       - Send server_application_traffic_secret to record_out as server_write_key
       - Check KeyUpdate.request_update
@@ -1292,7 +1214,7 @@ states:
       - target: CONNECTED
 
   - name: CONNECTED.SEND_KEY_UPDATE
-    desc:
+    actions:
       - client_application_traffic_secret = HKDF-Expand-Label(client_application_traffic_secret, "traffic upd", "", hash_length)
       - Create and send KeyUpdate with request_update := update_not_requested to record_out
       - Send client_application_traffic_secret to record_out as client_write_key
@@ -1308,7 +1230,7 @@ states:
       - target: CONNECTED
 
   - name: SEND_ALERT_ILLEGAL_PARAMETER
-    desc:
+    actions:
       - Send illegal_parameter alert
     channels:
       - name: record_out
@@ -1317,7 +1239,7 @@ states:
       - target: CONNECTION_TERMINATED
 
   - name: SEND_ALERT_DECODE_ERROR
-    desc:
+    actions:
       - Send decode_error alert
     channels:
       - name: record_out
@@ -1326,7 +1248,7 @@ states:
       - target: CONNECTION_TERMINATED
 
   - name: SEND_ALERT_BAD_CERTIFICATE
-    desc:
+    actions:
       - Send bad_certificate alert
     channels:
       - name: record_out
@@ -1335,7 +1257,7 @@ states:
       - target: CONNECTION_TERMINATED
 
   - name: SEND_ALERT_UNEXPECTED_MESSAGE
-    desc:
+    actions:
       - Send unexpected_message alert
     channels:
       - name: record_out
@@ -1344,7 +1266,7 @@ states:
       - target: CONNECTION_TERMINATED
 
   - name: SEND_ALERT_DECRYPT_ERROR
-    desc:
+    actions:
       - Send decrypt_error alert
     channels:
       - name: record_out
@@ -1353,7 +1275,7 @@ states:
       - target: CONNECTION_TERMINATED
 
   - name: SEND_ALERT_PROTOCOL_VERSION
-    desc:
+    actions:
       - Send protocol_version alert
     channels:
       - name: record_out
@@ -1362,7 +1284,7 @@ states:
       - target: CONNECTION_TERMINATED
 
   - name: SEND_ALERT_MISSING_EXTENSION
-    desc:
+    actions:
       - Send missing_extension alert
     channels:
       - name: record_out
@@ -1371,7 +1293,7 @@ states:
       - target: CONNECTION_TERMINATED
 
   - name: SEND_ALERT_UNSUPPORTED_CERTIFICATE
-    desc:
+    actions:
       - Send unsupported_certificate alert
     channels:
       - name: record_out
@@ -1380,7 +1302,7 @@ states:
       - target: CONNECTION_TERMINATED
 
   - name: CONNECTION_TERMINATED
-    desc:
+    actions:
       - Inform client application
     channels:
       - name: application_out
@@ -1389,7 +1311,7 @@ states:
       - target: FINAL
 
   - name: INVALID_CONFIGURATION
-    desc:
+    actions:
       - Inform client application
     channels:
       - name: application_out
