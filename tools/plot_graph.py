@@ -86,7 +86,7 @@ def check_state_attributes(state: Dict[str, str]) -> None:
     if 'name' not in state.keys():
         logging.error('Missing name attribute')
         sys.exit(2)
-    for attribute in set(state.keys()) - set(['channels', 'data', 'desc', 'name', 'transitions']):
+    for attribute in set(state.keys()) - set(['channels', 'data', 'actions', 'name', 'transitions']):
         logging.warning('Unexpected attribute \'%s\' in state \'%s\'', attribute, state['name'])
 
 
