@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
+import networkx as nx  # type: ignore
 import pygraphviz as pgv  # type: ignore
 import yaml
 
@@ -56,6 +57,9 @@ def main() -> None:
     graph.write(basename + '.dot')
     graph.layout('dot')
     graph.draw(basename + '.png')
+
+    nx_graph = nx.nx_agraph.from_agraph(graph)
+    nx.write_gexf(nx_graph, basename + '.gexf')
 
 
 def process_states(graph: pgv.AGraph, states: List[Dict[str, Any]],
