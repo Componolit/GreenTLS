@@ -1,0 +1,16 @@
+sudo: required
+
+jobs:
+  include:
+    - name: "Python Code"
+      language: python
+      python:
+        - 3.6
+      install:
+        - pip install flake8
+        - pip install mypy
+        - pip install pygraphviz
+        - pip install pylint
+        - pip install pyyaml
+      script:
+        - make check-python
