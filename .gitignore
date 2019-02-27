@@ -3,3 +3,8 @@
 
 # Ada Library Information
 *.ali
+
+# Output files
+*.png
+*.gexf
+*.dot
