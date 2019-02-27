@@ -8,6 +8,7 @@ jobs:
         - 3.6
       install:
         - pip install flake8
+        - pip install isort
         - pip install mypy
         - pip install networkx
         - pip install pygraphviz
