@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Set
 
 import pygraphviz as pgv  # type: ignore
+import networkx as nx # type: ignore
 import yaml
 
 
@@ -77,6 +78,10 @@ def main() -> None:
     verify_graph(graph, state_nodes, data_nodes, channel_nodes)
 
     basename = Path(args.file).name.rsplit('.')[0]
+
+    G = nx.nx_agraph.from_agraph(graph)
+    nx.write_gexf(G, basename + '.gexf')
+
     graph.write(basename + '.dot')
     graph.layout('dot')
     graph.draw(basename + '.png')
