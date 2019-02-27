@@ -9,6 +9,7 @@ jobs:
       install:
         - pip install flake8
         - pip install mypy
+        - pip install networkx
         - pip install pygraphviz
         - pip install pylint
         - pip install pyyaml
