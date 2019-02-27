@@ -6,7 +6,7 @@ import logging
 import sys
 
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Set, Tuple
 
 import pygraphviz as pgv  # type: ignore
 import yaml
@@ -48,13 +48,25 @@ def main() -> None:
     graph.add_nodes_from(state_nodes, color='black')
     graph.add_node(yml['final'], fontname='bold')
 
+    data_nodes, channel_nodes = process_states(graph, yml['states'], yml['final'])
+
+    verify_graph(graph, state_nodes, data_nodes, channel_nodes)
+
+    basename = Path(args.file).name.rsplit('.')[0]
+    graph.write(basename + '.dot')
+    graph.layout('dot')
+    graph.draw(basename + '.png')
+
+
+def process_states(graph: pgv.AGraph, states: List[Dict[str, Any]],
+                   final_state: str) -> Tuple[Set[str], Set[str]]:
     data_nodes: Set[str] = set()
     channel_nodes: Set[str] = set()
 
-    for state in yml['states']:
+    for state in states:
         check_state_attributes(state)
 
-        if state['name'] != yml['final']:
+        if state['name'] != final_state:
             if 'transitions' in state:
                 add_transitions(graph, state['name'], state['transitions'])
             else:
@@ -74,19 +86,15 @@ def main() -> None:
         else:
             logging.info('No \'data\' in \'%s\'', state['name'])
 
-    verify_graph(graph, state_nodes, data_nodes, channel_nodes)
-
-    basename = Path(args.file).name.rsplit('.')[0]
-    graph.write(basename + '.dot')
-    graph.layout('dot')
-    graph.draw(basename + '.png')
+    return (data_nodes, channel_nodes)
 
 
 def check_state_attributes(state: Dict[str, str]) -> None:
     if 'name' not in state.keys():
         logging.error('Missing name attribute')
         sys.exit(2)
-    for attribute in set(state.keys()) - set(['channels', 'data', 'actions', 'name', 'transitions']):
+    attributes = ['channels', 'data', 'actions', 'name', 'transitions']
+    for attribute in set(state.keys()) - set(attributes):
         logging.warning('Unexpected attribute \'%s\' in state \'%s\'', attribute, state['name'])
 
 
@@ -116,9 +124,11 @@ def add_data(graph: pgv.AGraph, state_name: str, data_list: List[Dict[str, str]]
             graph.add_edge(state_name, data['name'], color='orange')
 
 
-def verify_graph(graph: pgv.AGraph, state_nodes: List[str], data_nodes: Set[str], channel_nodes: Set[str]) -> None:
+def verify_graph(graph: pgv.AGraph, state_nodes: List[str], data_nodes: Set[str],
+                 channel_nodes: Set[str]) -> None:
     for node in state_nodes:
-        if not [edge for edge in graph.edges(node) if edge[1] == node and edge[0] not in channel_nodes | data_nodes]:
+        if not [edge for edge in graph.edges(node)
+                if edge[1] == node and edge[0] not in channel_nodes | data_nodes]:
             logging.error('No transition to \'%s\'', node)
     for node in data_nodes:
         if not [edge for edge in graph.edges(node) if edge[0] == node]:
