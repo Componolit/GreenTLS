@@ -7,12 +7,14 @@ jobs:
       python:
         - 3.6
       install:
+        - pip install coverage
         - pip install flake8
         - pip install isort
         - pip install mypy
         - pip install networkx
         - pip install pygraphviz
         - pip install pylint
+        - pip install pyparsing
         - pip install pyyaml
       script:
         - make check-python

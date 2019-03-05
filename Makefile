@@ -5,3 +5,4 @@ check-python:
 	pylint */*.py
 	flake8 */*.py
 	isort -c -w 100 */*.py
+	coverage run -m unittest
