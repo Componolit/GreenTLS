@@ -8,3 +8,8 @@
 *.png
 *.gexf
 *.dot
+
+# Python Cache
+.coverage
+.mypy_cache
+__pycache__
