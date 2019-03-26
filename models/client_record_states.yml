@@ -1,453 +1,306 @@
-# FIXME: race condition on KeyUpdate from server. stopping processing of application data when KeyUpdate message received. restart when key updated from Handshake layer.
 initial: START
 final: FINAL
 states:
   - name: START
-    desc:
-      - Set client_sequence_number := 0
-      - Set server_sequence_number := 0
-      - Set record_protection := False
-      - Set network_receive_enabled := True
-      - Set network_send_enabled := True
-      - Set heartbeat_receive_enabled := False
-      - Set heartbeat_send_enabled := False
-    data:
-      - name: client_sequence_number
-        access: w
-      - name: server_sequence_number
-        access: w
-      - name: record_protection
-        access: w
-      - name: network_receive_enabled
-        access: w
-      - name: network_send_enabled
-        access: w
-      - name: heartbeat_receive_enabled
-        access: w
-      - name: heartbeat_send_enabled
-        access: w
+    actions:
+      - client_sequence_number := 0
+      - server_sequence_number := 0
+      - record_protection := False
+      - network_receive_enabled := True
+      - network_send_enabled := True
+      - heartbeat_receive_enabled := False
+      - heartbeat_send_enabled := False
+      - client_write_key_received := False
+      - server_write_key_received := False
     transitions:
       - target: IDLE
+        condition: True
 
   - name: IDLE
     transitions:
       - target: IDLE.MESSAGE
+        condition: True
   - name: IDLE.MESSAGE
-    desc:
-      - Check for message from control layer
+    actions:
+      - control_message_received := Message_Available (control_in)
     transitions:
       - target: CONTROL
-        condition: control message received
+        condition: control_message_received = True
       - target: IDLE.KEY_UPDATE
-    channels:
-      - name: control_in
-        access: r
+        condition: control_message_received = False
   - name: IDLE.KEY_UPDATE
-    desc:
-      - Check for message from key management
-    channels:
-      - name: key_in
-        access: r
+    actions:
+      - key_message_received := Message_Available (key_in)
     transitions:
       - target: KEY_UPDATE
-        condition: key message received
+        condition: key_message_received = True
       - target: IDLE.HANDSHAKE
+        condition: key_message_received = False
   - name: IDLE.HANDSHAKE
-    desc:
-      - Check for message from Handshake layer
-    channels:
-      - name: handshake_in
-        access: r
+    actions:
+      - handshake_message_received := Message_Available (handshake_in)
     transitions:
       - target: HANDSHAKE
-        condition: handshake message received
+        condition: handshake_message_received = True
       - target: IDLE.NETWORK
+        condition: handshake_message_received = False
   - name: IDLE.NETWORK
-    desc:
-      - Check for message from network layer
-    channels:
-      - name: network_in
-        access: r
-    data:
-      - name: network_receive_enabled
-        access: r
-      - name: network_send_enabled
-        access: r
+    actions:
+      - network_message_received := Message_Available (network_in)
     transitions:
       - target: NETWORK_IN
-        condition: message received and network_receive_enabled == True
+        condition: network_message_received = True and network_receive_enabled = True
       - target: IDLE.APPLICATION
+        condition: network_message_received = False or network_receive_enabled = False
   - name: IDLE.APPLICATION
-    desc:
-      - Check for message from client application
-    channels:
-      - name: application_in
-        access: r
+    actions:
+      - application_message_received := Message_Available (application_in)
     transitions:
       - target: NETWORK_OUT.APPLICATION
-        condition: message received
+        condition: application_message_received = True
       - target: IDLE.HEARTBEAT
+        condition: application_message_received = False
   - name: IDLE.HEARTBEAT
-    desc:
-      - Check for message from heartbeat component
-    channels:
-      - name: heartbeat_in
-        access: r
-    data:
-      - name: heartbeat_send_enabled
-        access: r
+    actions:
+      - heartbeat_message_received := Message_Available (heartbeat_in)
     transitions:
       - target: HEARTBEAT
-        condition: message received and heartbeat_send_enabled == True
+        condition: heartbeat_message_received = True and heartbeat_send_enabled = True
       - target: IDLE.HEARTBEAT_CONTROL
+        condition: heartbeat_message_received = False or heartbeat_send_enabled = False
   - name: IDLE.HEARTBEAT_CONTROL
-    desc:
-      - Check for message from heartbeat_control component
-    channels:
-      - name: heartbeat_control_in
-        access: r
+    actions:
+      - heartbeat_control_message_received := Message_Available (heartbeat_control_in)
     transitions:
       - target: HEARTBEAT_CONTROL
-        condition: message received
+        condition: heartbeat_control_message_received = True
       - target: IDLE
+        condition: heartbeat_control_message_received = False
 
   - name: CONTROL
-    desc:
-      - Read ControlMessage from control_in
-      - Parse ControlMessage
-    channels:
-      - name: control_in
-        access: r
-    data:
-      - name: ControlMessage
-        access: rw
+    actions:
+      - Control_Message := GreenTLS_Control'Read (control_in)
     transitions:
+      - target: ERROR
+        condition: Control_Message'Valid = False
       - target: SHUTDOWN
-        condition: shutdown message
+        condition: Control_Message'Valid = True and Control_Message.Kind = SHUTDOWN_MESSAGE
 
   - name: SHUTDOWN
-    desc:
-      - Send close_notify alert on network_out
-      - Set network_send_enabled := False
-    channels:
-      - name: network_out
-        access: w
-    data:
-      - name: network_send_enabled
-        access: w
+    actions:
+      - TLS_Alert'Write (network_out, TLS_Alert (CLOSE_NOTIFY))
+      - network_send_enabled := False
     transitions:
       - target: FINAL
+        condition: True
 
   - name: KEY_UPDATE
-    desc:
-      - Read KeyMessage from key_in
-      - Parse KeyMessage
-    channels:
-      - name: key_in
-        access: r
-    data:
-      - name: KeyMessage
-        access: rw
+    actions:
+      - Key_Message := GreenTLS_Key_Message'Read (key_in)
     transitions:
+      - target: ERROR
+        condition: Key_Message'Valid = False
       - target: KEY_UPDATE.CLIENT
-        condition: key update message for client
+        condition: Key_Message'Valid = True and Key_Message.Kind = CLIENT
       - target: KEY_UPDATE.SERVER
-        condition: key update message for server
+        condition: Key_Message'Valid = True and Key_Message.Kind = SERVER
 
   - name: KEY_UPDATE.CLIENT
-    desc:
-      - Read client_write_key from KeyMessage
-      - Set client_sequence_number := 0
-      - Set record_protection := True
-    data:
-      - name: KeyMessage
-        access: r
-      - name: client_write_key
-        access: w
-      - name: client_sequence_number
-        access: w
-      - name: record_protection
-        access: w
+    actions:
+      - client_write_key := KeyMessage.client_write_key
+      - client_write_iv := KeyMessage.client_write_iv
+      - client_iv_length := KeyMessage.client_iv_length
+      - client_write_key_received := True
+      - client_sequence_number := 0
+      - record_protection := True
     transitions:
       - target: IDLE
+        condition: True
 
   - name: KEY_UPDATE.SERVER
-    desc:
-      - Read server_write_key from KeyMessage
-      - Set server_sequence_number := 0
-    data:
-      - name: KeyMessage
-        access: r
-      - name: server_write_key
-        access: w
-      - name: server_sequence_number
-        access: w
+    actions:
+      - server_write_key := KeyMessage.server_write_key
+      - server_write_iv := KeyMessage.server_write_iv
+      - server_iv_length := KeyMessage.server_iv_length
+      - server_write_key_received := True
+      - server_sequence_number := 0
     transitions:
       - target: IDLE
+        condition: True
 
   - name: HANDSHAKE
-    desc:
-      - Read TLSRecord from handshake_in
-    channels:
-      - name: handshake_in
-        access: r
-    data:
-      - name: NETWORK_OUT.TLSRecord
-        access: w
-      - name: record_protection
-        access: r
+    actions:
+      - Handshake_Message := GreenTLS_Handshake_Message'Read (handshake_in)
+      - TLS_Record_Message := TLS_Record (HANDSHAKE, Handshake_Message)
     transitions:
-      - target: NETWORK_OUT.SEND
-        condition: record_protection == False and network_send_enabled == True
-      - target: NETWORK_OUT.ENCRYPT_AND_SEND
-        condition: record_protection == True and network_send_enabled == True
+      - target: ERROR
+        condition: Handshake_Message'Valid = False
       - target: IDLE
-        condition: network_send_enabled == False
+        condition: Handshake_Message'Valid = True and network_send_enabled = False
+      - target: ERROR
+        condition: Handshake_Message'Valid = True and record_protection = True and network_send_enabled = True and client_write_key_received = False
+      - target: NETWORK_OUT.SEND
+        condition: Handshake_Message'Valid = True and record_protection = False and network_send_enabled = True and client_write_key_received = False
+      - target: NETWORK_OUT.ENCRYPT_AND_SEND
+        condition: Handshake_Message'Valid = True and record_protection = True and network_send_enabled = True and client_write_key_received = True
 
   - name: NETWORK_IN
-    desc:
-      - Read TLSRecord from network_in
-      - Check record type
-    channels:
-      - name: network_in
-        access: r
-    data:
-      - name: NETWORK_IN.TLSRecord
-        access: w
-      - name: heartbeat_receive_enabled
-        access: r
+    actions:
+      - TLS_Record_Message := TLS_Record'Read (network_in)
     transitions:
-      - target: NETWORK_IN.DECRYPT
-        condition: type == application_data
-      - target: NETWORK_IN.PARSE
-        condition: type == alert or type == handshake
-      - target: NETWORK_IN.HANDSHAKE
-        condition: type == change_cipher_spec
-      - target: NETWORK_IN.HEARTBEAT
-        condition: type == heartbeat and heartbeat_receive_enabled == True
       - target: ERROR
-        condition: invalid record
+        condition: TLS_Record_Message'Valid = False
+      - target: ERROR
+        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = APPLICATION_DATA and server_write_key_received = False
+      - target: NETWORK_IN.DECRYPT
+        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = APPLICATION_DATA and server_write_key_received = True
+      - target: NETWORK_IN.PARSE
+        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = ALERT or TLS_Record_Message.Tag = HANDSHAKE
+      - target: NETWORK_IN.HANDSHAKE
+        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = CHANGE_CIPHER_SPEC
+      - target: NETWORK_IN.HEARTBEAT
+        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = HEARTBEAT and heartbeat_receive_enabled = True
       - target: IDLE
+        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = HEARTBEAT and heartbeat_receive_enabled = False
 
   - name: NETWORK_IN.DECRYPT
-    desc:
-      - Decrypt TLSRecord to TLSInnerPlaintext with server_write_key
-    data:
-      - name: server_write_key
-        access: r
-      - name: NETWORK_IN.TLSRecord
-        access: rw
-      - name: TLSInnerPlaintext
-        access: rw
+    actions:
+      - TLS_Inner_Plaintext := Decrypt (server_write_key, server_write_iv, server_iv_length, server_sequence_number, TLS_Record_Message)
     transitions:
       - target: ERROR
-        condition: no server_write_key available
-      - target: ERROR
-        condition: decryption failed
+        condition: TLS_Inner_Plaintext = null
       - target: NETWORK_IN.DECRYPT.VERIFICATION
-        condition: decryption successful
+        condition: TLS_Inner_Plaintext != null
   - name: NETWORK_IN.DECRYPT.VERIFICATION
-    desc:
-      - Verify TLSInnerPlaintext
-    data:
-      - name: TLSInnerPlaintext
-        access: r
+    actions:
+      - Valid_TLS_Inner_Plaintext := Verify_TLS_Inner_Plaintext (TLS_Inner_Plaintext)  # returns False if Handshake or Alert record with zero-length TLS_Inner_Plaintext.content or only padding, no type field found
     transitions:
       - target: ERROR
-        condition: Handshake or Alert record with zero-length TLSInnerPlaintext.content
-      - target: ERROR
-        condition: only padding, no type field found
-      - target: NETWORK_IN.DECRYPT.TRANSFORM
-        condition: verification successful
-  - name: NETWORK_IN.DECRYPT.TRANSFORM
-    desc:
-      - Transform TLSInnerPlaintext to TLSRecord
-      - Increment server_sequence_number
-    data:
-      - name: TLSInnerPlaintext
-        access: r
-      - name: NETWORK_IN.TLSRecord
-        access: w
-      - name: server_sequence_number
-        access: rw
-    transitions:
+        condition: Valid_TLS_Inner_Plaintext = False
       - target: NETWORK_IN.PARSE
+        condition: Valid_TLS_Inner_Plaintext = True
 
   - name: NETWORK_IN.PARSE
-    desc:
-      - Parse TLSRecord
-    data:
-      - name: NETWORK_IN.TLSRecord
-        access: r
+    actions:
+      - TLS_Record_Message := Transform_To_Record_Message (TLS_Inner_Plaintext)
+      - server_sequence_number := server_sequence_number + 1
     transitions:
+      - target: ERROR
+        condition: TLS_Record_Message'Valid = False
       - target: NETWORK_IN.APPLICATION
-        condition: type == application_data
+        condition: TLS_Record_Message.Tag = APPLICATION_DATA
       - target: NETWORK_IN.HANDSHAKE
-        condition: type == handshake
+        condition: TLS_Record_Message.Tag = HANDSHAKE
       - target: NETWORK_IN.ALERT
-        condition: type == alert
+        condition: TLS_Record_Message.Tag = ALERT
       - target: ERROR
-        condition: type == change_cipher_spec
-      - target: ERROR
-        condition: invalid type
+        condition: TLS_Record_Message.Tag = CHANGE_CIPHER_SPEC
       - target: IDLE
 
   - name: NETWORK_IN.APPLICATION
-    desc:
-      - Write TLSRecord.content to application_out
-    channels:
-      - name: application_out
-        access: w
-    data:
-      - name: NETWORK_IN.TLSRecord
-        access: r
+    actions:
+      - GreenTLS_Application_Message'Write (application_out, GreenTLS_Application_Message (TLS_Record_Message.content))
     transitions:
       - target: IDLE
+        condition: True
 
   - name: NETWORK_IN.HANDSHAKE
-    desc:
-      - Write TLSRecord.content to handshake_out
-    channels:
-      - name: handshake_out
-        access: w
-    data:
-      - name: NETWORK_IN.TLSRecord
-        access: r
+    actions:
+      - GreenTLS_Handshake_Message'Write (handshake_out, GreenTLS_Handshake_Message (TLS_Record_Message.content))
     transitions:
       - target: IDLE
+        condition: True
 
   - name: NETWORK_IN.HEARTBEAT
-    desc:
-      - Write TLSRecord to heartbeat_out
-    channels:
-      - name: heartbeat_out
-        access: w
-    data:
-      - name: NETWORK_IN.TLSRecord
-        access: r
+    actions:
+      - GreenTLS_Heartbeat_Message'Write (heartbeat_out, GreenTLS_Heartbeat_Message (TLS_Record_Message.content))
     transitions:
       - target: IDLE
+        condition: True
 
   - name: NETWORK_IN.ALERT
-    desc:
-      - Parse TLSRecord as alert message
-      - Check type
-    data:
-      - name: NETWORK_IN.TLSRecord
-        access: r
+    actions:
+      - TLS_Alert_Message := TLS_Record_Message.content
     transitions:
+      - target: ERROR
+        condition: TLS_Alert_Message'Valid = False
       - target: NETWORK_IN.ALERT.CLOSE
-        condition: type == close_notify
+        condition: TLS_Alert_Message'Valid = True and TLS_Alert_Message.Description = CLOSE_NOTIFY
       - target: NETWORK_IN.ALERT.TERMINATE
-        condition: type != close_notify
+        condition: TLS_Alert_Message'Valid = True and TLS_Alert_Message.Description != CLOSE_NOTIFY
 
   - name: NETWORK_IN.ALERT.CLOSE
-    desc:
-      - Set network_receive_enabled := False
-      - Send alert to control_out
-    channels:
-      - name: control_out
-        access: w
-    data:
-      - name: network_receive_enabled
-        access: w
+    actions:
+      - network_receive_enabled := False
+      - GreenTLS_Control_Message'Write (control_out, GreenTLS_Control_Message (TLS_Alert_Message.Description))
     transitions:
       - target: IDLE
+        condition: True
 
   - name: NETWORK_IN.ALERT.TERMINATE
-    desc:
-      - Send alert to control_out
-    channels:
-      - name: control_out
-        access: w
+    actions:
+      - GreenTLS_Control_Message'Write (control_out, GreenTLS_Control_Message (TLS_Alert_Message.Description))
     transitions:
       - target: ERROR
+        condition: True
 
   - name: NETWORK_OUT.APPLICATION
-    desc:
-      - Read ApplicationMessage from application_in
-      - Create TLSRecord containing ApplicationMessage
-    channels:
-      - name: application_in
-        access: r
-    data:
-      - name: ApplicationMessage
-        access: rw
-      - name: NETWORK_OUT.TLSRecord
-        access: rw
+    actions:
+      - Application_Message := GreenTLS_Application_Message'Read (application_in)
+      - TLS_Record_Message := TLS_Record (APPLICATION, Application_Message.Data)
     transitions:
       - target: NETWORK_OUT.ENCRYPT_AND_SEND
+        condition: True
 
   - name: HEARTBEAT
-    desc:
-      - Read TLSRecord from heartbeat_in
-      - Check TLSRecord for valid heartbeat message
-    channels:
-      - name: heartbeat_in
-        access: r
-    data:
-      - name: NETWORK_OUT.TLSRecord
-        access: rw
+    actions:
+      - TLS_Record_Message := TLS_Record (HEARTBEAT, GreenTLS_Heartbeat_Message'Read (heartbeat_in))
     transitions:
       - target: NETWORK_OUT.ENCRYPT_AND_SEND
+        condition: True
 
   - name: NETWORK_OUT.SEND
-    desc:
-      - Write TLSRecord to network_out
-    channels:
-      - name: network_out
-        access: w
-    data:
-      - name: NETWORK_OUT.TLSRecord
-        access: r
+    actions:
+      - TLS_Record'Write (network_out, TLS_Record_Message)
     transitions:
       - target: IDLE
+        condition: True
 
   - name: NETWORK_OUT.ENCRYPT_AND_SEND
-    desc:
-      - Encrypt TLSRecord to TLSCiphertext with client_write_key
-      - Write TLSCiphertext to network_out
-      - Increment client_sequence_number
-    channels:
-      - name: network_out
-        access: w
-    data:
-      - name: NETWORK_OUT.TLSRecord
-        access: rw
-      - name: client_write_key
-        access: r
-      - name: TLSCiphertext
-        access: rw
-      - name: client_sequence_number
-        access: rw
+    actions:
+      - TLS_Ciphertext_Message := Encrypt (client_write_key, client_write_iv, client_iv_length, client_sequence_number, TLS_Record_Message)
+      - TLS_Record'Write (network_out, TLS_Ciphertext_Message)
+      - client_sequence_number := client_sequence_number + 1
     transitions:
-      - target: ERROR
-        condition: no client_write_key available
       - target: IDLE
+        condition: True
 
   - name: HEARTBEAT_CONTROL
-    desc:
-      - Read HeartbeatControlMessage from heartbeat_control_in
-      - Parse HeartbeatControlMessage
-      - Set heartbeat_receive_enabled
-      - Set heartbeat_send_enabled
-    channels:
-      - name: heartbeat_control_in
-        access: r
-    data:
-      - name: HeartbeatControlMessage
-        access: rw
-      - name: heartbeat_receive_enabled
-        access: w
-      - name: heartbeat_send_enabled
-        access: w
+    actions:
+      - Heartbeat_Control_Message := GreenTLS_Heartbeat_Control_Message'Read (heartbeat_control_in)
+      - heartbeat_receive_enabled := True
+      - heartbeat_send_enabled := True
     transitions:
+      - target: ERROR
+        condition: Heartbeat_Control_Message'Valid = False
       - target: IDLE
+        condition: Heartbeat_Control_Message'Valid = True
 
   - name: ERROR
-    desc:
-      - Inform Handshake layer and client application
+    actions:
+      - GreenTLS_Control_Message'Write (control_out, GreenTLS_Control_Message (TYPE))  # FIXME: replace TYPE
     transitions:
       - target: FINAL
+        condition: True
 
   - name: FINAL
+
+constants:
+  - SHUTDOWN_MESSAGE
+  - CLOSE_NOTIFY
+  - APPLICATION_DATA
+  - ALERT
+  - HANDSHAKE
+  - CHANGE_CIPHER_SPEC
+  - HEARTBEAT
+  - APPLICATION
