@@ -70,3 +70,19 @@ class TestActionParser(unittest.TestCase):  # pylint: disable=too-many-public-me
                                                [Variable('extensions_list'),
                                                 Function('supported_groups_extension',
                                                          [Variable('configuration')])])))
+
+    def test_assignment_attribute_read(self) -> None:
+        self.assert_action('Control_Message := GreenTLS_Control\'Read (control_in)',
+                           Action())
+
+    def test_assignment_attribute_write(self) -> None:
+        self.assert_action('TLS_Alert\'Write (network_out, TLS_Alert (CLOSE_NOTIFY))',
+                           Action())
+
+    def test_assignment_variable_attribute(self) -> None:
+        self.assert_action('client_write_key := KeyMessage.client_write_key',
+                           Action())
+
+    def test_assignment_math_expression(self) -> None:
+        self.assert_action('server_sequence_number := server_sequence_number + 1',
+                           Action())
