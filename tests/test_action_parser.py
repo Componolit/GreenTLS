@@ -1,9 +1,8 @@
 import unittest
 
 from rflx.expression import Add, Number, Value
-
-from tools.action_parser import (Action, ActionParser, Assignment, BooleanLiteral, Function,
-                                 Identifier, Read, String, Write)
+from tools.action_parser import (FALSE, Action, ActionParser, Assignment, Call, Read, String,
+                                 Variable, Write)
 
 
 class TestActionParser(unittest.TestCase):  # pylint: disable=too-many-public-methods
@@ -16,77 +15,78 @@ class TestActionParser(unittest.TestCase):  # pylint: disable=too-many-public-me
 
     def test_assignement_literal(self) -> None:
         self.assert_action('server_certificate_type := X509',
-                           Assignment(Identifier("server_certificate_type"), Value("X509")))
+                           Assignment('server_certificate_type', Variable('X509')))
 
     def test_assignment_boolean(self) -> None:
         self.assert_action('server_name_received := False',
-                           Assignment(Identifier("server_name_received"), BooleanLiteral("False")))
+                           Assignment('server_name_received', FALSE))
 
     def test_assignement_numeral(self) -> None:
         self.assert_action('legacy_version := 772',
-                           Assignment(Identifier("legacy_version"), Number(772)))
+                           Assignment('legacy_version', Number(772)))
 
     def test_assignement_string(self) -> None:
         self.assert_action(
-            'label := "c e traffic"',
-            Assignment(Identifier("label"), String("c e traffic")))
+            'label := \'c e traffic\'',
+            Assignment('label', String('c e traffic')))
 
     def test_assignement_numeral_hex(self) -> None:
         self.assert_action('legacy_version := 16#0304#',
-                           Assignment(Identifier("legacy_version"), Number(772)))
+                           Assignment('legacy_version', Number(772)))
 
     def test_assignement_numeral_bin(self) -> None:
         self.assert_action('legacy_version := 2#1100000100#',
-                           Assignment(Identifier("legacy_version"), Number(772)))
+                           Assignment('legacy_version', Number(772)))
 
     def test_assignment_function(self) -> None:
         self.assert_action('connection := read(application_in)',
-                           Assignment(Identifier("connection"),
-                                      Function('read', [Value('application_in')])))
+                           Assignment('connection',
+                                      Call('read', [Variable('application_in')])))
 
     def test_assignment_function_no_arg(self) -> None:
-        self.assert_action('connection := null()',
-                           Assignment(Identifier("connection"), Function("null", [])))
+        self.assert_action('connection := fun()',
+                           Assignment('connection', Call('fun', [])))
 
     def test_assignment_function_multiple_args(self) -> None:
-        self.assert_action('derived_early_secret := Derive_Secret(early_secret,"derived","")',
-                           Assignment(Identifier("derived_early_secret"),
-                                      Function('Derive_Secret',
-                                               [Value('early_secret'),
-                                                String("derived"), String("")])))
+        self.assert_action('derived_early_secret := Derive_Secret(early_secret, \'derived\', \'\')',
+                           Assignment('derived_early_secret',
+                                      Call('Derive_Secret',
+                                           [Variable('early_secret'),
+                                            String('derived'),
+                                            String('')])))
 
     def test_assignment_nested_functions(self) -> None:
-        self.assert_action('extensions_list := list(supported_versions_extension(list(772))))',
-                           Assignment(Identifier("extensions_list"),
-                                      Function("list",
-                                               [Function('supported_versions_extension',
-                                                         [Function('list', [Number(772)])])])))
+        self.assert_action('extensions_list := list(supported_versions_extension(list(772)))',
+                           Assignment('extensions_list',
+                                      Call('list',
+                                           [Call('supported_versions_extension',
+                                                 [Call('list', [Number(772)])])])))
 
     def test_assignment_nested_functions_multiple_args(self) -> None:
         self.assert_action('extensions_list := append(extensions_list, '
                            'supported_groups_extension(configuration))',
-                           Assignment(Identifier('extensions_list'),
-                                      Function('append',
-                                               [Value('extensions_list'),
-                                                Function('supported_groups_extension',
-                                                         [Value('configuration')])])))
+                           Assignment('extensions_list',
+                                      Call('append',
+                                           [Variable('extensions_list'),
+                                            Call('supported_groups_extension',
+                                                 [Variable('configuration')])])))
 
     def test_assignment_attribute_read(self) -> None:
         self.assert_action('Control_Message := GreenTLS_Control\'Read (control_in)',
-                           Assignment(Identifier("Control_Message"),
+                           Assignment('Control_Message',
                                       Read('GreenTLS_Control', 'control_in')))
 
     def test_assignment_attribute_write(self) -> None:
         self.assert_action('TLS_Alert\'Write (network_out, TLS_Alert (CLOSE_NOTIFY))',
                            Write('TLS_Alert', 'network_out',
-                                 Function('TLS_Alert', [Value('CLOSE_NOTIFY')])))
+                                 Call('TLS_Alert', [Variable('CLOSE_NOTIFY')])))
 
-    def test_assignment_variable_attribute(self) -> None:
+    def test_assignment_variable(self) -> None:
         self.assert_action('client_write_key := KeyMessage.client_write_key',
-                           Assignment(Identifier("client_write_key"),
-                                      Value('KeyMessage.client_write_key')))
+                           Assignment('client_write_key',
+                                      Variable('KeyMessage', ['client_write_key'])))
 
     def test_assignment_math_expression(self) -> None:
         self.assert_action('server_sequence_number := server_sequence_number + 1',
-                           Assignment(Identifier("server_sequence_number"),
+                           Assignment('server_sequence_number',
                                       Add(Value('server_sequence_number'), Number(1))))
