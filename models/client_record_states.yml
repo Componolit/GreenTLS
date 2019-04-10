@@ -1,306 +1,421 @@
-initial: START
+channels:
+  - name: Network_Channel
+    type: TLS_Record.TLS_Record
+    mode: Read_Write
+  - name: Data_Channel
+    type: Stream
+    mode: Read_Write
+  - name: Application_Control_Channel
+    type: GreenTLS.Application_Control_Message
+    mode: Read_Write
+  - name: Handshake_Control_Channel
+    type: GreenTLS.Control_Message
+    mode: Read
+  - name: Handshake_Data_Channel
+    type: Stream
+    mode: Read_Write
+  - name: Heartbeat_Data_Channel
+    type: GreenTLS.Heartbeat_Data_Message
+    mode: Read_Write
+variables:
+  - "Alert_Message : TLS_Alert.Alert := Initialize (16)"
+  - "Application_Control_Message : GreenTLS.Application_Control_Message := Initialize (16)"
+  - "Ciphertext : GreenTLS.Content := Initialize (2**14 * 8 + 256)"
+  - "Client_Key_Update_Message : GreenTLS.Key_Update_Message"
+  - "Client_Sequence_Number : GreenTLS.Sequence_Number := 0"
+  - "Client_Write_Key_Received : Boolean := False"
+  - "Error : TLS_Alert.Alert_Description"
+  - "Error_Sent : Boolean := False"
+  - "Handshake_Control_Message : GreenTLS.Control_Message := Initialize (1024)"
+  - "Handshake_Message : GreenTLS.Content := Initialize (2**14 * 8)"
+  - "Heartbeat_Data_Message : GreenTLS.Content := Initialize (2**14 * 8)"
+  - "Heartbeat_Control_Message : GreenTLS.Heartbeat_Control_Message := Initialize (8)"
+  - "Heartbeat_Receive_Enabled : Boolean := False"
+  - "Heartbeat_Send_Enabled : Boolean := False"
+  - "Network_Receive_Enabled : Boolean := True"
+  - "Network_Send_Enabled : Boolean := True"
+  - "Plaintext : GreenTLS.Content := Initialize (2**14 * 8)"
+  - "Record_Protection : Boolean := False"
+  - "Server_Key_Update_Message : GreenTLS.Key_Update_Message"
+  - "Server_Sequence_Number : GreenTLS.Sequence_Number := 0"
+  - "Server_Write_Key_Received : Boolean := False"
+  - "TLS_Inner_Plaintext : TLS_Record.TLS_Inner_Plaintext := Initialize (2**14 * 8)"
+  - "TLS_Record_Message : TLS_Record.TLS_Record := Initialize (2**14 * 8 + 296)"
+functions:
+  - "Decrypt (Server_Key_Update_Message : GreenTLS.Key_Update_Message, Server_Sequence_Number : GreenTLS.Sequence_Number, Encrypted_Record : Payload) return TLS_Record.TLS_Inner_Plaintext"
+  - "Encrypt (Client_Key_Update_Message : GreenTLS.Key_Update_Message, Client_Sequence_Number : GreenTLS.Sequence_Number, Fragment : Payload) return GreenTLS.Content"
+initial: IDLE
 final: FINAL
 states:
-  - name: START
-    actions:
-      - client_sequence_number := 0
-      - server_sequence_number := 0
-      - record_protection := False
-      - network_receive_enabled := True
-      - network_send_enabled := True
-      - heartbeat_receive_enabled := False
-      - heartbeat_send_enabled := False
-      - client_write_key_received := False
-      - server_write_key_received := False
-    transitions:
-      - target: IDLE
-        condition: True
-
   - name: IDLE
     transitions:
+      - target: FINAL
+        conditon: Error_Sent = True
       - target: IDLE.MESSAGE
-        condition: True
   - name: IDLE.MESSAGE
+    variables:
+      - "Available : Boolean := False"
     actions:
-      - control_message_received := Message_Available (control_in)
+      - Available := Data_Available (Application_Control_Channel)
     transitions:
       - target: CONTROL
-        condition: control_message_received = True
-      - target: IDLE.KEY_UPDATE
-        condition: control_message_received = False
-  - name: IDLE.KEY_UPDATE
+        condition: Available = True
+      - target: IDLE.HANDSHAKE_CONTROL
+        condition: Available = False
+  - name: IDLE.HANDSHAKE_CONTROL
+    variables:
+      - "Available : Boolean := False"
     actions:
-      - key_message_received := Message_Available (key_in)
+      - Available := Data_Available (Handshake_Control_Channel)
     transitions:
-      - target: KEY_UPDATE
-        condition: key_message_received = True
+      - target: HANDSHAKE_CONTROL
+        condition: Available = True
       - target: IDLE.HANDSHAKE
-        condition: key_message_received = False
+        condition: Available = False
   - name: IDLE.HANDSHAKE
+    variables:
+      - "Available : Boolean := False"
     actions:
-      - handshake_message_received := Message_Available (handshake_in)
+      - Available := Data_Available (Handshake_Data_Channel)
     transitions:
       - target: HANDSHAKE
-        condition: handshake_message_received = True
+        condition: Available = True
       - target: IDLE.NETWORK
-        condition: handshake_message_received = False
+        condition: Available = False
   - name: IDLE.NETWORK
+    variables:
+      - "Available : Boolean := False"
     actions:
-      - network_message_received := Message_Available (network_in)
+      - Available := Data_Available (Network_Channel)
     transitions:
       - target: NETWORK_IN
-        condition: network_message_received = True and network_receive_enabled = True
+        condition: Available = True and Network_Receive_Enabled = True
       - target: IDLE.APPLICATION
-        condition: network_message_received = False or network_receive_enabled = False
+        condition: Network_Receive_Enabled = False
   - name: IDLE.APPLICATION
     actions:
-      - application_message_received := Message_Available (application_in)
+    variables:
+      - "Available : Boolean := False"
+      - Available := Data_Available (Data_Channel)
     transitions:
       - target: NETWORK_OUT.APPLICATION
-        condition: application_message_received = True
+        condition: Available = True
       - target: IDLE.HEARTBEAT
-        condition: application_message_received = False
+        condition: Available = False
   - name: IDLE.HEARTBEAT
+    variables:
+      - "Available : Boolean := False"
     actions:
-      - heartbeat_message_received := Message_Available (heartbeat_in)
+      - Available := Data_Available (Heartbeat_Data_Channel)
     transitions:
       - target: HEARTBEAT
-        condition: heartbeat_message_received = True and heartbeat_send_enabled = True
-      - target: IDLE.HEARTBEAT_CONTROL
-        condition: heartbeat_message_received = False or heartbeat_send_enabled = False
-  - name: IDLE.HEARTBEAT_CONTROL
-    actions:
-      - heartbeat_control_message_received := Message_Available (heartbeat_control_in)
-    transitions:
-      - target: HEARTBEAT_CONTROL
-        condition: heartbeat_control_message_received = True
+        condition: Available = True and Heartbeat_Send_Enabled = True
       - target: IDLE
-        condition: heartbeat_control_message_received = False
 
   - name: CONTROL
     actions:
-      - Control_Message := GreenTLS_Control'Read (control_in)
+      - Application_Control_Message := Read (Application_Control_Channel)
     transitions:
-      - target: ERROR
-        condition: Control_Message'Valid = False
+      - target: ERROR.INTERNAL_ERROR
+        condition: Application_Control_Message'Valid = False
+        doc: rfc8446.txt+4977:4-4979:38
       - target: SHUTDOWN
-        condition: Control_Message'Valid = True and Control_Message.Kind = SHUTDOWN_MESSAGE
+        condition: Application_Control_Message.Tag = GreenTLS.SHUTDOWN
+      - target: ERROR.INTERNAL_ERROR
+        doc: rfc8446.txt+4977:4-4979:38
 
   - name: SHUTDOWN
+    variables:
+      - "Success : Boolean"
     actions:
-      - TLS_Alert'Write (network_out, TLS_Alert (CLOSE_NOTIFY))
-      - network_send_enabled := False
+      - Alert_Message := TLS_Alert.Alert'(Level => TLS_Alert.WARNING, Description => TLS_Alert.CLOSE_NOTIFY)
+      - Success := Write (Network_Channel, TLS_Record.TLS_Record'(Tag => TLS_Record.ALERT, Legacy_Record_Version => TLS_Record.TLS_1_2, Length => Alert_Message'Length, Fragment => Alert_Message))
+      - Network_Send_Enabled := False
+    doc: rfc8446.txt+4828:4-4829:52
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: FINAL
-        condition: True
 
-  - name: KEY_UPDATE
+  - name: HANDSHAKE_CONTROL
     actions:
-      - Key_Message := GreenTLS_Key_Message'Read (key_in)
+      - Handshake_Control_Message := Read (Handshake_Control_Channel)
     transitions:
-      - target: ERROR
-        condition: Key_Message'Valid = False
+      - target: ERROR.INTERNAL_ERROR
+        condition: Handshake_Control_Message'Valid = False
+        doc: rfc8446.txt+4977:4-4979:38
       - target: KEY_UPDATE.CLIENT
-        condition: Key_Message'Valid = True and Key_Message.Kind = CLIENT
+        condition: Handshake_Control_Message.Tag = KEY_UPDATE_CLIENT
       - target: KEY_UPDATE.SERVER
-        condition: Key_Message'Valid = True and Key_Message.Kind = SERVER
+        condition: Handshake_Control_Message.Tag = KEY_UPDATE_SERVER
+      - target: HEARTBEAT_CONTROL
+        condition: Handshake_Control_Message.Tag = HEARTBEAT_MODE
 
   - name: KEY_UPDATE.CLIENT
     actions:
-      - client_write_key := KeyMessage.client_write_key
-      - client_write_iv := KeyMessage.client_write_iv
-      - client_iv_length := KeyMessage.client_iv_length
-      - client_write_key_received := True
-      - client_sequence_number := 0
-      - record_protection := True
+      - Client_Key_Update_Message := GreenTLS.Key_Update_Message (Handshake_Control_Message.Payload)
+      - Client_Write_Key_Received := True
+      - Client_Sequence_Number := 0
+      - Record_Protection := True
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Client_Key_Update_Message'Valid = False
+        doc: rfc8446.txt+4977:4-4979:38
       - target: IDLE
-        condition: True
 
   - name: KEY_UPDATE.SERVER
     actions:
-      - server_write_key := KeyMessage.server_write_key
-      - server_write_iv := KeyMessage.server_write_iv
-      - server_iv_length := KeyMessage.server_iv_length
-      - server_write_key_received := True
-      - server_sequence_number := 0
+      - Server_Key_Update_Message := GreenTLS.Key_Update_Message (Handshake_Control_Message.Payload)
+      - Server_Write_Key_Received := True
+      - Server_Sequence_Number := 0
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Server_Key_Update_Message'Valid = False
+        doc: rfc8446.txt+4977:4-4979:38
       - target: IDLE
-        condition: True
 
   - name: HANDSHAKE
     actions:
-      - Handshake_Message := GreenTLS_Handshake_Message'Read (handshake_in)
-      - TLS_Record_Message := TLS_Record (HANDSHAKE, Handshake_Message)
+      - Handshake_Message := Read (Handshake_Data_Channel)
+      - TLS_Record_Message := TLS_Record.TLS_Record'(Tag => TLS_Record.HANDSHAKE, Legacy_Record_Version => TLS_Record.TLS_1_2, Length => Handshake_Message'Length, Fragment => Handshake_Message.Data)
     transitions:
-      - target: ERROR
+      - target: ERROR.INTERNAL_ERROR
         condition: Handshake_Message'Valid = False
+        doc: rfc8446.txt+4977:4-4979:38
       - target: IDLE
-        condition: Handshake_Message'Valid = True and network_send_enabled = False
-      - target: ERROR
-        condition: Handshake_Message'Valid = True and record_protection = True and network_send_enabled = True and client_write_key_received = False
-      - target: NETWORK_OUT.SEND
-        condition: Handshake_Message'Valid = True and record_protection = False and network_send_enabled = True and client_write_key_received = False
-      - target: NETWORK_OUT.ENCRYPT_AND_SEND
-        condition: Handshake_Message'Valid = True and record_protection = True and network_send_enabled = True and client_write_key_received = True
+        condition: Network_Send_Enabled = False
+      - target: ERROR.INTERNAL_ERROR
+        condition: Record_Protection = True and Client_Write_Key_Received = False
+        doc: rfc8446.txt+4977:4-4979:38
+      - target: NETWORK_OUT.SEND_UNENCRYPTED
+        condition: Record_Protection = False and Client_Write_Key_Received = False
+      - target: NETWORK_OUT.SEND_ENCRYPTED
+        condition: Record_Protection = True and Client_Write_Key_Received = True
+      - target: ERROR.INTERNAL_ERROR
+        doc: rfc8446.txt+4977:4-4979:38
 
   - name: NETWORK_IN
     actions:
-      - TLS_Record_Message := TLS_Record'Read (network_in)
+      - TLS_Record_Message := Read (Network_Channel)
     transitions:
-      - target: ERROR
+      - target: ERROR.DECODE_ERROR
         condition: TLS_Record_Message'Valid = False
-      - target: ERROR
-        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = APPLICATION_DATA and server_write_key_received = False
+        doc: rfc8446.txt+4959:4-4964:57
+      - target: ERROR.UNEXPECTED_MESSAGE
+        condition: TLS_Record_Message.Tag = TLS_Record.APPLICATION_DATA and Server_Write_Key_Received = False
+        doc: rfc8446.txt+4902:4-4905:29
       - target: NETWORK_IN.DECRYPT
-        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = APPLICATION_DATA and server_write_key_received = True
-      - target: NETWORK_IN.PARSE
-        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = ALERT or TLS_Record_Message.Tag = HANDSHAKE
+        condition: TLS_Record_Message.Tag = TLS_Record.APPLICATION_DATA and Server_Write_Key_Received = True
+      - target: NETWORK_IN.CONTENT
+        condition: TLS_Record_Message.Tag = TLS_Record.HANDSHAKE or TLS_Record_Message.Tag = TLS_Record.ALERT
       - target: NETWORK_IN.HANDSHAKE
-        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = CHANGE_CIPHER_SPEC
+        condition: TLS_Record_Message.Tag = TLS_Record.CHANGE_CIPHER_SPEC
       - target: NETWORK_IN.HEARTBEAT
-        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = HEARTBEAT and heartbeat_receive_enabled = True
-      - target: IDLE
-        condition: TLS_Record_Message'Valid = True and TLS_Record_Message.Tag = HEARTBEAT and heartbeat_receive_enabled = False
+        condition: TLS_Record_Message.Tag = TLS_Record.HEARTBEAT and Heartbeat_Receive_Enabled = True
+      - target: ERROR.UNEXPECTED_MESSAGE
+        doc: rfc6520.txt+146:69-149:61
+        condition: TLS_Record_Message.Tag = TLS_Record.HEARTBEAT and Heartbeat_Receive_Enabled = False
+      - target: ERROR.INTERNAL_ERROR
+        doc: rfc8446.txt+4977:4-4979:38
 
   - name: NETWORK_IN.DECRYPT
     actions:
-      - TLS_Inner_Plaintext := Decrypt (server_write_key, server_write_iv, server_iv_length, server_sequence_number, TLS_Record_Message)
+      - TLS_Inner_Plaintext := Decrypt (Server_Key_Update_Message, Server_Sequence_Number, TLS_Record_Message.Encrypted_Record)
+      - Server_Sequence_Number := Server_Sequence_Number + 1
+      - Plaintext := GreenTLS.Content'(Data => TLS_Inner_Plaintext.Content)
+    doc: rfc8446.txt+4631:4-4669:49
     transitions:
-      - target: ERROR
-        condition: TLS_Inner_Plaintext = null
-      - target: NETWORK_IN.DECRYPT.VERIFICATION
-        condition: TLS_Inner_Plaintext != null
-  - name: NETWORK_IN.DECRYPT.VERIFICATION
-    actions:
-      - Valid_TLS_Inner_Plaintext := Verify_TLS_Inner_Plaintext (TLS_Inner_Plaintext)  # returns False if Handshake or Alert record with zero-length TLS_Inner_Plaintext.content or only padding, no type field found
-    transitions:
-      - target: ERROR
-        condition: Valid_TLS_Inner_Plaintext = False
-      - target: NETWORK_IN.PARSE
-        condition: Valid_TLS_Inner_Plaintext = True
-
-  - name: NETWORK_IN.PARSE
-    actions:
-      - TLS_Record_Message := Transform_To_Record_Message (TLS_Inner_Plaintext)
-      - server_sequence_number := server_sequence_number + 1
-    transitions:
-      - target: ERROR
-        condition: TLS_Record_Message'Valid = False
+      - target: ERROR.BAD_RECORD_MAC
+        condition: TLS_Inner_Plaintext'Valid = False
+        doc: rfc8446.txt+4907:4-4912:57
+      - target: ERROR.INTERNAL_ERROR
+        condition: Plaintext'Valid = False
+        doc: rfc8446.txt+4977:4-4979:38
       - target: NETWORK_IN.APPLICATION
-        condition: TLS_Record_Message.Tag = APPLICATION_DATA
+        condition: TLS_Inner_Plaintext.Tag = TLS_Record.APPLICATION_DATA
       - target: NETWORK_IN.HANDSHAKE
-        condition: TLS_Record_Message.Tag = HANDSHAKE
+        condition: TLS_Inner_Plaintext.Tag = TLS_Record.HANDSHAKE
       - target: NETWORK_IN.ALERT
-        condition: TLS_Record_Message.Tag = ALERT
-      - target: ERROR
-        condition: TLS_Record_Message.Tag = CHANGE_CIPHER_SPEC
-      - target: IDLE
+        condition: TLS_Inner_Plaintext.Tag = TLS_Record.ALERT
+      - target: ERROR.INTERNAL_ERROR
+        doc: rfc8446.txt+4977:4-4979:38
+
+  - name: NETWORK_IN.CONTENT
+    actions:
+      - Plaintext := GreenTLS.Content'(Data => TLS_Record_Message.Fragment)
+      transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Plaintext'Valid = False
+        doc: rfc8446.txt+4977:4-4979:38
+      - target: NETWORK_IN.HANDSHAKE
+        condition: TLS_Record_Message.Tag = TLS_Record.HANDSHAKE
+      - target: NETWORK_IN.ALERT
+        condition: TLS_Record_Message.Tag = TLS_Record.ALERT
+      - target: ERROR.INTERNAL_ERROR
+        doc: rfc8446.txt+4977:4-4979:38
 
   - name: NETWORK_IN.APPLICATION
+    variables:
+      - "Success : Boolean"
     actions:
-      - GreenTLS_Application_Message'Write (application_out, GreenTLS_Application_Message (TLS_Record_Message.content))
+      - Success := Write (Data_Channel, Plaintext.Data)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: IDLE
-        condition: True
 
   - name: NETWORK_IN.HANDSHAKE
+    variables:
+      - "Success : Boolean"
     actions:
-      - GreenTLS_Handshake_Message'Write (handshake_out, GreenTLS_Handshake_Message (TLS_Record_Message.content))
+      - Success := Write (Handshake_Data_Channel, Plaintext.Data)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: IDLE
-        condition: True
 
   - name: NETWORK_IN.HEARTBEAT
+    variables:
+      - "Success : Boolean"
     actions:
-      - GreenTLS_Heartbeat_Message'Write (heartbeat_out, GreenTLS_Heartbeat_Message (TLS_Record_Message.content))
+      - Success := Write (Heartbeat_Data_Channel, Plaintext.Data)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: IDLE
-        condition: True
 
   - name: NETWORK_IN.ALERT
     actions:
-      - TLS_Alert_Message := TLS_Record_Message.content
+      - Alert_Message := TLS_Alert.Alert (Plaintext.Data)
     transitions:
-      - target: ERROR
-        condition: TLS_Alert_Message'Valid = False
+      - target: ERROR.DECODE_ERROR
+        condition: Alert_Message'Valid = False
+        doc: rfc8446.txt+4959:4-4964:57
       - target: NETWORK_IN.ALERT.CLOSE
-        condition: TLS_Alert_Message'Valid = True and TLS_Alert_Message.Description = CLOSE_NOTIFY
+        condition: Alert_Message.Description = TLS_Alert.CLOSE_NOTIFY
       - target: NETWORK_IN.ALERT.TERMINATE
-        condition: TLS_Alert_Message'Valid = True and TLS_Alert_Message.Description != CLOSE_NOTIFY
+        condition: Alert_Message.Description /= TLS_Alert.CLOSE_NOTIFY
+        doc: rfc8446.txt+4726:4-4728:46
 
   - name: NETWORK_IN.ALERT.CLOSE
+    variables:
+      - "Success : Boolean"
     actions:
-      - network_receive_enabled := False
-      - GreenTLS_Control_Message'Write (control_out, GreenTLS_Control_Message (TLS_Alert_Message.Description))
+      - Network_Receive_Enabled := False
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.ALERT, Description => Alert_Message.Description))
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: IDLE
-        condition: True
 
   - name: NETWORK_IN.ALERT.TERMINATE
     actions:
-      - GreenTLS_Control_Message'Write (control_out, GreenTLS_Control_Message (TLS_Alert_Message.Description))
+      - Network_Send_Enabled := False
+      - Network_Receive_Enabled := False
+      - Error := Alert_Message.Description
+    doc: rfc8446.txt+4728:48-4729:57
     transitions:
-      - target: ERROR
-        condition: True
+      - target: ERROR.SEND_LOCAL
 
   - name: NETWORK_OUT.APPLICATION
     actions:
-      - Application_Message := GreenTLS_Application_Message'Read (application_in)
-      - TLS_Record_Message := TLS_Record (APPLICATION, Application_Message.Data)
+      - Plaintext := Read (Data_Channel)
+      - TLS_Record_Message := TLS_Record.TLS_Record'(Tag => TLS_Record.APPLICATION, Legacy_Record_Version => TLS_Record.TLS_1_2, Length => Plaintext.Data'Length, Fragment => Plaintext.Data)
     transitions:
-      - target: NETWORK_OUT.ENCRYPT_AND_SEND
-        condition: True
+      - target: NETWORK_OUT.SEND_ENCRYPTED
+
+  - name: NETWORK_OUT.SEND_UNENCRYPTED
+    variables:
+      - "Success : Boolean"
+    actions:
+      - Success := Write (Network_Channel, TLS_Record_Message)
+    transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
+      - target: IDLE
+
+  - name: NETWORK_OUT.SEND_ENCRYPTED
+    variables:
+      - "Success : Boolean"
+    actions:
+      - Ciphertext := Encrypt (Client_Key_Update_Message, Client_Sequence_Number, TLS_Record_Message.Fragment)
+      - Success := Write (Network_Channel, Ciphertext.Data)
+      - Client_Sequence_Number := Client_Sequence_Number + 1
+    transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
+      - target: IDLE
 
   - name: HEARTBEAT
     actions:
-      - TLS_Record_Message := TLS_Record (HEARTBEAT, GreenTLS_Heartbeat_Message'Read (heartbeat_in))
+      - Heartbeat_Data_Message := Read (Heartbeat_Data_Channel)
+      - TLS_Record_Message := TLS_Record.TLS_Record'(Tag => TLS_Record.HEARTBEAT, Legacy_Record_Version => TLS_Record.TLS_1_2, Length => Heartbeat_Data_Message.Length, Fragment => Heartbeat_Data_Message.Data)
     transitions:
-      - target: NETWORK_OUT.ENCRYPT_AND_SEND
-        condition: True
-
-  - name: NETWORK_OUT.SEND
-    actions:
-      - TLS_Record'Write (network_out, TLS_Record_Message)
-    transitions:
-      - target: IDLE
-        condition: True
-
-  - name: NETWORK_OUT.ENCRYPT_AND_SEND
-    actions:
-      - TLS_Ciphertext_Message := Encrypt (client_write_key, client_write_iv, client_iv_length, client_sequence_number, TLS_Record_Message)
-      - TLS_Record'Write (network_out, TLS_Ciphertext_Message)
-      - client_sequence_number := client_sequence_number + 1
-    transitions:
-      - target: IDLE
-        condition: True
+      - target: NETWORK_OUT.SEND_ENCRYPTED
 
   - name: HEARTBEAT_CONTROL
     actions:
-      - Heartbeat_Control_Message := GreenTLS_Heartbeat_Control_Message'Read (heartbeat_control_in)
-      - heartbeat_receive_enabled := True
-      - heartbeat_send_enabled := True
+      - Heartbeat_Control_Message := GreenTLS.Heartbeat_Control_Message (Handshake_Control_Message.Payload)
     transitions:
-      - target: ERROR
+      - target: ERROR.INTERNAL_ERROR
         condition: Heartbeat_Control_Message'Valid = False
-      - target: IDLE
-        condition: Heartbeat_Control_Message'Valid = True
+        doc: rfc8446.txt+4977:4-4979:38
+      - target: HEARTBEAT_CONTROL.CONFIGURE
 
-  - name: ERROR
+  - name: HEARTBEAT_CONTROL.CONFIGURE
     actions:
-      - GreenTLS_Control_Message'Write (control_out, GreenTLS_Control_Message (TYPE))  # FIXME: replace TYPE
+      - Heartbeat_Receive_Enabled := Heartbeat_Control_Message.Receive = GreenTLS.HEARTBEAT_ENABLED
+      - Heartbeat_Send_Enabled := Heartbeat_Control_Message.Send = GreenTLS.HEARTBEAT_ENABLED
     transitions:
+      - target: IDLE
+
+  - name: ERROR.UNEXPECTED_MESSAGE
+    actions:
+      - Error := TLS_Alert.UNEXPECTED_MESSAGE
+    transitions:
+      - target: ERROR.SEND_LOCAL
+
+  - name: ERROR.BAD_RECORD_MAC
+    actions:
+      - Error := TLS_Alert.BAD_RECORD_MAC
+    transitions:
+      - target: ERROR.SEND_LOCAL
+
+  - name: ERROR.DECODE_ERROR
+    actions:
+      - Error := TLS_Alert.DECODE_ERROR
+    transitions:
+      - target: ERROR.SEND_LOCAL
+
+  - name: ERROR.INTERNAL_ERROR
+    actions:
+      - Error := TLS_Alert.INTERNAL_ERROR
+    transitions:
+      - target: ERROR.SEND_LOCAL
+
+  - name: ERROR.SEND_LOCAL
+    variables:
+      - "Success : Boolean"
+    actions:
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.ALERT, Description => Error))
+    transitions:
+      - target: ERROR.SEND_REMOTE
+        condition: Network_Send_Enabled = True
       - target: FINAL
-        condition: True
+
+  - name: ERROR.SEND_REMOTE
+    actions:
+      - Alert_Message := TLS_Alert.TLS_Alert'(Level => TLS_Alert.FATAL, Description => Error)
+      - TLS_Record_Message := TLS_Record.TLS_Record'(Tag => TLS_Record.ALERT, Legacy_Record_Version => TLS_Record.TLS_1_2, Length => Alert_Message'Length, Fragment => Alert_Message)
+      - Error_Sent := True
+    transitions:
+      - target: NETWORK_OUT.SEND_UNENCRYPTED
+        condition: Record_Protection = False
+      - target: NETWORK_OUT.SEND_ENCRYPTED
+        condition: Record_Protection = True
 
   - name: FINAL
-
-constants:
-  - SHUTDOWN_MESSAGE
-  - CLOSE_NOTIFY
-  - APPLICATION_DATA
-  - ALERT
-  - HANDSHAKE
-  - CHANGE_CIPHER_SPEC
-  - HEARTBEAT
-  - APPLICATION
+    actions:
+      - Delete (Client_Key_Update_Message)
+      - Delete (Server_Key_Update_Message)
+    doc: rfc8446.txt+4729:60-4731:14
