@@ -1,9 +1,9 @@
 import unittest
 
-from rflx.expression import Number
+from rflx.expression import Add, Number, Value
 
 from tools.action_parser import (Action, ActionParser, Assignment, BooleanLiteral, Function,
-                                 Identifier, Literaldef, String, Variable)
+                                 Identifier, Read, String, Write)
 
 
 class TestActionParser(unittest.TestCase):  # pylint: disable=too-many-public-methods
@@ -16,7 +16,7 @@ class TestActionParser(unittest.TestCase):  # pylint: disable=too-many-public-me
 
     def test_assignement_literal(self) -> None:
         self.assert_action('server_certificate_type := X509',
-                           Assignment(Identifier("server_certificate_type"), Literaldef("X509")))
+                           Assignment(Identifier("server_certificate_type"), Value("X509")))
 
     def test_assignment_boolean(self) -> None:
         self.assert_action('server_name_received := False',
@@ -42,7 +42,7 @@ class TestActionParser(unittest.TestCase):  # pylint: disable=too-many-public-me
     def test_assignment_function(self) -> None:
         self.assert_action('connection := read(application_in)',
                            Assignment(Identifier("connection"),
-                                      Function('read', [Variable('application_in')])))
+                                      Function('read', [Value('application_in')])))
 
     def test_assignment_function_no_arg(self) -> None:
         self.assert_action('connection := null()',
@@ -52,7 +52,7 @@ class TestActionParser(unittest.TestCase):  # pylint: disable=too-many-public-me
         self.assert_action('derived_early_secret := Derive_Secret(early_secret,"derived","")',
                            Assignment(Identifier("derived_early_secret"),
                                       Function('Derive_Secret',
-                                               [Variable('early_secret'),
+                                               [Value('early_secret'),
                                                 String("derived"), String("")])))
 
     def test_assignment_nested_functions(self) -> None:
@@ -67,22 +67,26 @@ class TestActionParser(unittest.TestCase):  # pylint: disable=too-many-public-me
                            'supported_groups_extension(configuration))',
                            Assignment(Identifier('extensions_list'),
                                       Function('append',
-                                               [Variable('extensions_list'),
+                                               [Value('extensions_list'),
                                                 Function('supported_groups_extension',
-                                                         [Variable('configuration')])])))
+                                                         [Value('configuration')])])))
 
     def test_assignment_attribute_read(self) -> None:
         self.assert_action('Control_Message := GreenTLS_Control\'Read (control_in)',
-                           Action())
+                           Assignment(Identifier("Control_Message"),
+                                      Read('GreenTLS_Control', 'control_in')))
 
     def test_assignment_attribute_write(self) -> None:
         self.assert_action('TLS_Alert\'Write (network_out, TLS_Alert (CLOSE_NOTIFY))',
-                           Action())
+                           Write('TLS_Alert', 'network_out',
+                                 Function('TLS_Alert', [Value('CLOSE_NOTIFY')])))
 
     def test_assignment_variable_attribute(self) -> None:
         self.assert_action('client_write_key := KeyMessage.client_write_key',
-                           Action())
+                           Assignment(Identifier("client_write_key"),
+                                      Value('KeyMessage.client_write_key')))
 
     def test_assignment_math_expression(self) -> None:
         self.assert_action('server_sequence_number := server_sequence_number + 1',
-                           Action())
+                           Assignment(Identifier("server_sequence_number"),
+                                      Add(Value('server_sequence_number'), Number(1))))
