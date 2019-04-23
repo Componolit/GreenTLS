@@ -3,3 +3,9 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-06T15:36:21+01:00
 
 ====== Triple Handshakes and Cookie Cutters: Breaking and Fixing Authentication over TLS ======
+
+- https://www.mitls.org/downloads/tlsauth.pdf
+- https://www.mitls.org/pages/attacks/3SHAKE
+
+TLS clients do not check if server certificate changes during renogiation.
+This allows together with other weaknesses to perform a MITM attack by a malicious server.

@@ -4,4 +4,4 @@ Creation-Date: 2015-10-05T13:27:33+01:00
 
 ====== validate group/public key ======
 
-Ref: [[TLS:Attacks:Crypto:Parameter_validation:DH_group_attacks:MODP_small_subgroup_attack]]
+Ref: [[Parameter validation:DH group attacks:MODP small subgroup attack]]

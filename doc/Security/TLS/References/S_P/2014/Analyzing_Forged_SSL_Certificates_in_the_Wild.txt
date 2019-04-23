@@ -3,3 +3,15 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-06T15:37:16+01:00
 
 ====== Analyzing Forged SSL Certificates in the Wild ======
+
+- https://www.linshunghuang.com/papers/mitm.pdf
+
+Each CA can issue a certificate for any website. Thus only one trusted CA has to be compromised to affect all websites in the internet.
+A Flash Player plugin was developed which is able to detect forged certificates.
+Proposed mitigations:
+	- HSTS, public key / certificate pinning (HPKP, TACK, DVCert)
+	- TLS-OBC
+	- certificate validation with notaries
+	- certificate audit logs (Certificate Transparency)
+	- DNS-based authentication (DANE)
+

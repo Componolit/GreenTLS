@@ -3,3 +3,5 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-06T11:01:16+01:00
 
 ====== On the Security of RC4 in TLS ======
+
+- https://www.usenix.org/conference/usenixsecurity13/technical-sessions/paper/alFardan

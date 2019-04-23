@@ -1,0 +1,8 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-03-12T15:02:38+01:00
+
+====== Weak Default Parameters ======
+Created Dienstag 12 März 2019
+
+- [[References:USENIX Security:2018:The Secure Socket API TLS as an Operating System Service]]

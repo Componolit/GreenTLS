@@ -3,3 +3,8 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-05T12:17:29+01:00
 
 ====== Using Frankencerts for Automated Adversarial Testing of Certificate Validation in SSL/TLS Implementations ======
+
+- https://www.cs.utexas.edu/~shmat/shmat_oak14.pdf
+
+Various TLS implementations do not validate certificates correctly.
+Synthetic certificates ("frankencerts") that are randomly mutated from real certificates are used to test implementations.

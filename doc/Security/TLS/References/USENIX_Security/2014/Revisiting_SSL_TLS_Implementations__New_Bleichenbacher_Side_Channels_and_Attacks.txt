@@ -3,3 +3,5 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-05T13:42:18+01:00
 
 ====== Revisiting SSL/TLS Implementations: New Bleichenbacher Side Channels and Attacks ======
+
+https://www.usenix.org/conference/usenixsecurity14/technical-sessions/presentation/meyer

@@ -1,0 +1,8 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-03-12T15:00:37+01:00
+
+====== Insufficient Certificate Validation ======
+Created Dienstag 12 März 2019
+
+- [[References:STM:2013:MITHYS  Mind The Hand You Shake]]

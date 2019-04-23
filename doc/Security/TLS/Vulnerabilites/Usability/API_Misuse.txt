@@ -1,0 +1,9 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-03-12T15:05:17+01:00
+
+====== API Misuse ======
+Created Dienstag 12 März 2019
+
+- [[References:S P:2015:Vetting SSL Usage in Applications with SSL INT]]
+- [[References:USENIX Security:2018:The Secure Socket API TLS as an Operating System Service]]

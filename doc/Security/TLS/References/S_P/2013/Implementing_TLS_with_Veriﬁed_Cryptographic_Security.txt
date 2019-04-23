@@ -3,3 +3,7 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-06T15:38:58+01:00
 
 ====== Implementing TLS with Veriﬁed Cryptographic Security ======
+
+- https://www.mitls.org/downloads/miTLS-report.pdf
+
+A verified reference implementation of TLS 1.2 was developed.

@@ -1,0 +1,11 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-03-12T15:38:09+01:00
+
+====== Missing Binding of Client End Point ======
+Created Dienstag 12 März 2019
+
+A MITM attacker is able to reuse an intercepted application token through a different TLS connection, because the token has not been (cryptographically) bound to the original channel.
+
+- [[References:USENIX Security:2012:Origin-Bound Certificates  A Fresh Approach to Strong Client Authentication for the Web]]
+- [[References:USENIX Security:2014:On the Effective Prevention of TLS Man-in-the-Middle Attacks in Web Applications]]

@@ -1,0 +1,8 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-02-22T16:44:14+01:00
+
+====== Return Of Bleichenbachers Oracle Threat (ROBOT) ======
+Created Freitag 22 Februar 2019
+
+- https://www.usenix.org/conference/usenixsecurity18/presentation/bock

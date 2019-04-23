@@ -3,3 +3,5 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-06T13:17:51+01:00
 
 ====== Origin-Bound Certificates: A Fresh Approach to Strong Client Authentication for the Web ======
+
+- https://www.usenix.org/conference/usenixsecurity12/technical-sessions/presentation/dietz

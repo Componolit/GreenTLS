@@ -1,0 +1,8 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-03-12T14:35:51+01:00
+
+====== Implementation ======
+Created Dienstag 12 März 2019
+
+- [[References:S P:2013:Implementing TLS with Veriﬁed Cryptographic Security]]

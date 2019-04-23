@@ -3,3 +3,9 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-06T15:42:48+01:00
 
 ====== On the Security of TLS Renegotiation ======
+
+- https://eprint.iacr.org/2012/630.pdf
+
+The renegotiation mechanism of TLS version 1.2 and prior allow MITM attacks.
+Aside disabling renegotiation, two countermeasures were standardized: RIE and SCSV.
+It was formally shown that the proposed fixes offer good protection against renegotiation attacks.

@@ -1,0 +1,9 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-03-12T14:34:29+01:00
+
+====== Crypto ======
+Created Dienstag 12 März 2019
+
+- [[References:USENIX Security:2013:On the Security of RC4 in TLS]]
+- [[References:USENIX Security:2014:On the Practical Exploitability of Dual EC in TLS Implementations]]

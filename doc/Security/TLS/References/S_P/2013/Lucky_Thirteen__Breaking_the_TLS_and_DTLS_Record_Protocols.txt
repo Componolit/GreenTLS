@@ -3,3 +3,7 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-06T15:39:44+01:00
 
 ====== Lucky Thirteen: Breaking the TLS and DTLS Record Protocols ======
+
+- http://isg.rhul.ac.uk/tls/TLStiming.pdf
+
+Analysing the timing of the decryption process allows recovering the plaintext.

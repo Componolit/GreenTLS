@@ -1,0 +1,12 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-03-12T14:35:35+01:00
+
+====== Protocol ======
+Created Dienstag 12 März 2019
+
+- [[References:S P:2013:On the Security of TLS Renegotiation]]
+- [[References:S P:2015:How Secure and Quick is QUIC  Provable Security and Performance Analyses]]
+- [[References:S P:2014:Triple Handshakes and Cookie Cutters  Breaking and Fixing Authentication over TLS]]
+- [[References:S P:2014:Analyzing Forged SSL Certificates in the Wild]]
+- [[References:arXiv:Selfie  reflections on TLS 1.3 with PSK]]

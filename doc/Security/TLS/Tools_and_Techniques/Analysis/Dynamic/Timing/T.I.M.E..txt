@@ -4,4 +4,4 @@ Creation-Date: 2015-10-05T13:47:59+01:00
 
 ====== T.I.M.E. ======
 
-Ref: [[TLS:References:Usenix:2014:Revisiting_SSL_TLS_Implementations__New_Bleichenbacher_Side_Channels_and_Attacks]]
+Ref: [[References:USENIX Security:2014:Revisiting SSL TLS Implementations  New Bleichenbacher Side Channels and Attacks]]

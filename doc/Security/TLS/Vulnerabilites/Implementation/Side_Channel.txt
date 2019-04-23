@@ -1,0 +1,10 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-03-12T15:46:56+01:00
+
+====== Side Channel ======
+Created Dienstag 12 März 2019
+
+- [[References:S P:2013:Lucky Thirteen  Breaking the TLS and DTLS Record Protocols]]
+- [[References:USENIX Security:2014:Revisiting SSL TLS Implementations  New Bleichenbacher Side Channels and Attacks]]
+- [[References:USENIX Security:2018:Return Of Bleichenbachers Oracle Threat (ROBOT)]]

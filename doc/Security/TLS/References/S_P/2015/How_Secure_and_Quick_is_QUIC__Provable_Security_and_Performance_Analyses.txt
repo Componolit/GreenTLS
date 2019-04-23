@@ -3,3 +3,9 @@ Wiki-Format: zim 0.4
 Creation-Date: 2015-10-06T15:40:37+01:00
 
 ====== How Secure and Quick is QUIC? Provable Security and Performance Analyses ======
+
+- https://eprint.iacr.org/2015/582.pdf
+
+QUIC does not provide forward secrecy.
+QUIC is prone to attacks preventing 0-RTT and DoS attacks.
+There is a trade off between latency and security.
