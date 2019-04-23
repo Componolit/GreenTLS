@@ -1,0 +1,19 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2019-04-23T15:01:07+02:00
+
+====== Selfie  reflections on TLS 1.3 with PSK ======
+Created Dienstag 23 April 2019
+
+- https://eprint.iacr.org/2019/347.pdf
+
+TLS 1.3 allows out-of-band provisioning of PSKs.
+If parallel client and server sessions on one host is allowed, a MITM attacker is able to reflect the connection attempt back to the same host and thus cause a connection to itself.
+A TLS 1.3 server is not able to detect such a scenario, as no further authentication will be performed in PSK mode.
+
+Proposed mitigations:
+- Disallow external PSKs.
+- Enforce use of certificate authentication with external PSKs.
+- Disallow sharing one PSK between more than one client and one server.
+- Cache all generated nonces and reject incoming connections with cached nonces.
+- Enforce use of SNI extension.
