@@ -20,4 +20,18 @@ package TLS_Record is
          Encrypted_Record : Payload;
       end message;
 
+   -- ISSUE: Componolit/RecordFlux#90
+
+   -- type TLS_Inner_Plaintext is
+   --    message
+   --       Zeros : Padding
+   --          with Marker => Content_Type;
+   --       Tag : Content_Type
+   --          then Content
+   --             with Length => Message'Length - Zeros'Length - Tag'Length
+   --             if Tag = APPLICATION or ((Tag = ALERT or Tag = HANDSHAKE) and Message'Length - Zeros'Length - Tag'Length > 0)
+   --       Content : Payload;
+   --    end message
+   --       with Order => Right_To_Left;
+
 end TLS_Record;
