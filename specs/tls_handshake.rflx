@@ -674,11 +674,11 @@ package TLS_Handshake is
          Binders : PSK_Binder_Entries;
       end message;
 
-   type Identity is mod 2**16;
+   type Identity_Index is mod 2**16;
 
    type Pre_Shared_Key_SH is
       message
-         Selected_Identity : Identity;
+         Selected_Identity : Identity_Index;
       end message;
 
    for CH_Extension use (Data => Pre_Shared_Key_CH)
