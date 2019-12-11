@@ -75,8 +75,6 @@ package GreenTLS is
          Data : Payload;
       end message;
 
-   type Boolean is (TRUE, FALSE) with Size => 8;
-
    type Configuration is
       message
          PSK_Key_Exchange_Modes_Length : TLS_Handshake.PSK_Key_Exchange_Modes_Length
@@ -109,8 +107,12 @@ package GreenTLS is
             then Key_Shares
                with Length => Key_Shares_Length;
          Key_Shares : TLS_Handshake.Key_Share_Entries;
-         Post_Handshake_Auth_Enabled : Boolean
-         Early_Data_Configured_Enabled : Boolean
+         Server_Authentication_Enabled : Boolean;
+         Post_Handshake_Auth_Enabled : Boolean;
+         Early_Data_Enabled : Boolean;
+         Server_Name_Enabled : Boolean;
+         Max_Fragment_Length_Enabled : Boolean;
+         Max_Fragment_Length : TLS_Handshake.Max_Fragment_Length_Value;
       end message;
 
    type Name_Length is 1 .. 253 with Size => 8;
