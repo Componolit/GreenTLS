@@ -30,7 +30,7 @@ package TLS_Handshake is
 
    type Extension_Type is (
       EXTENSION_SERVER_NAME => 0,
-      EXTENSION_MAX_FRAGMENT_LENGTH => 1,  -- unsupported
+      EXTENSION_MAX_FRAGMENT_LENGTH => 1,
       EXTENSION_STATUS_REQUEST => 5,  -- unsupported
       EXTENSION_SUPPORTED_GROUPS => 10,
       EXTENSION_SIGNATURE_ALGORITHMS => 13,
@@ -378,6 +378,25 @@ package TLS_Handshake is
       if Tag = EXTENSION_SERVER_NAME;
    for EE_Extension use (Data => Server_Name_List)
       if Tag = EXTENSION_SERVER_NAME;
+
+   -- Max Fragment Length
+
+   type Max_Fragment_Length_Value is (
+      MAX_FRAGMENT_LENGTH_9 => 1,
+      MAX_FRAGMENT_LENGTH_10 => 2,
+      MAX_FRAGMENT_LENGTH_11 => 3,
+      MAX_FRAGMENT_LENGTH_12 => 4
+   ) with Size => 8;
+
+   type Max_Fragment_Length is
+      message
+         Max_Fragment_Length : Max_Fragment_Length_Value;
+      end message;
+
+   for CH_Extension use (Data => Max_Fragment_Length)
+      if Tag = EXTENSION_MAX_FRAGMENT_LENGTH;
+   for EE_Extension use (Data => Max_Fragment_Length)
+      if Tag = EXTENSION_MAX_FRAGMENT_LENGTH;
 
    -- Supported Versions Extension
 
