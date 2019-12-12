@@ -86,7 +86,7 @@ functions:
   - "Hash_Length (Cipher_Suite : TLS_Handshake.Cipher_Suite) return GreenTLS.KM_Length"
   - "Calculate_Binders_Length (PSKs : GreenTLS.PSKs) return RFLX.Types.Bit_Length"
   - "Calculate_Binders (PSKs : GreenTLS.PSKs; Transcript_Hash : GreenTLS.Content) return TLS_Handshake.PSK_Binder_Entries"
-  - "Calculate_ECDHE_Key (Client_Share : TLS_Handshake.Key_Share_Entry; Server_Share : TLS_Handshake.Key_Share_Entry) return GreenTLS.Content;
+  - "Calculate_ECDHE_Key (Client_Share : TLS_Handshake.Key_Share_Entry; Server_Share : TLS_Handshake.Key_Share_Entry) return GreenTLS.Content"
 states:
   - name: START
     actions:
