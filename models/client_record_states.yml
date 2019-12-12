@@ -243,16 +243,16 @@ states:
   - name: NETWORK_IN.CONTENT
     actions:
       - Plaintext := GreenTLS.Content'(Data => TLS_Record_Message.Fragment)
-      transitions:
-      - target: ERROR.INTERNAL_ERROR
-        condition: Plaintext'Valid = False
-        doc: rfc8446.txt+4977:4-4979:38
-      - target: NETWORK_IN.HANDSHAKE
-        condition: TLS_Record_Message.Tag = TLS_Record.HANDSHAKE
-      - target: NETWORK_IN.ALERT
-        condition: TLS_Record_Message.Tag = TLS_Record.ALERT
-      - target: ERROR.INTERNAL_ERROR
-        doc: rfc8446.txt+4977:4-4979:38
+    transitions:
+    - target: ERROR.INTERNAL_ERROR
+      condition: Plaintext'Valid = False
+      doc: rfc8446.txt+4977:4-4979:38
+    - target: NETWORK_IN.HANDSHAKE
+      condition: TLS_Record_Message.Tag = TLS_Record.HANDSHAKE
+    - target: NETWORK_IN.ALERT
+      condition: TLS_Record_Message.Tag = TLS_Record.ALERT
+    - target: ERROR.INTERNAL_ERROR
+      doc: rfc8446.txt+4977:4-4979:38
 
   - name: NETWORK_IN.APPLICATION
     variables:
