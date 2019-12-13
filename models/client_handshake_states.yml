@@ -105,7 +105,7 @@ states:
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Keystore_Message'Valid = False or Keystore_Message.Tag /= KEYSTORE_RESPONSE or Keystore_Message.Request /= KEYSTORE_REQUEST_SERVER_PREFERRED_GROUPS
-      - target: SERVER_PREFERRED_GROUPS.SET
+      - target: SERVER_PREFERRED_GROUPS.CONFIGURE
 
   - name: SERVER_PREFERRED_GROUPS.CONFIGURE
     actions:
@@ -116,6 +116,7 @@ states:
       - target: SERVER_PREFERRED_GROUPS.SELECT
 
   - name: SERVER_PREFERRED_GROUPS.SELECT
+    actions:
       - Supported_Groups := Select_Supported_Groups (Server_Preferred_Groups.Supported_Groups, Configuration.Supported_Groups)
     transitions:
       - target: CREATE_CLIENT_HELLO_EXTENSIONS
@@ -495,6 +496,7 @@ states:
       - target: WAIT_EE
 
   - name: WAIT_EE
+    actions:
       - Encrypted_Extensions_Handshake_Message := TLS_Handshake.Handshake'Read (Record_Data_Channel)
     transitions:
       - target: SEND_ALERT_DECODE_ERROR
@@ -1048,11 +1050,9 @@ states:
     transitions:
       - target: CONNECTION_TERMINATED
 
-  - name: SEND_ALERT_UNSUPPORTED_CERTIFICATE
-    actions:
-      - Send Unsupported_Certificate alert
+  - name: ERROR.INTERNAL_ERROR
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: SEND_ALERT_INTERNAL_ERROR
 
   - name: SEND_ALERT_INTERNAL_ERROR
     actions:
@@ -1071,3 +1071,5 @@ states:
       - Inform client application
     transitions:
       - target: SEND_ALERT_INTERNAL_ERROR
+
+  - name: FINAL
