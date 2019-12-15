@@ -50,7 +50,7 @@ states:
   - name: IDLE
     transitions:
       - target: FINAL
-        conditon: Error_Sent = True
+        condition: Error_Sent = True
       - target: IDLE.MESSAGE
   - name: IDLE.MESSAGE
     variables:
