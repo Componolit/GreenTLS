@@ -120,7 +120,7 @@ states:
         condition: Application_Control_Message'Valid = False
         doc: rfc8446.txt+4977:4-4979:38
       - target: SHUTDOWN
-        condition: Application_Control_Message.Tag = GreenTLS.SHUTDOWN
+        condition: Application_Control_Message.Tag = GreenTLS.APPLICATION_SHUTDOWN
       - target: ERROR.INTERNAL_ERROR
         doc: rfc8446.txt+4977:4-4979:38
 
@@ -302,7 +302,7 @@ states:
       - "Success : Boolean"
     actions:
       - Network_Receive_Enabled := False
-      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.ALERT, Description => Alert_Message.Description))
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Data'Length, Data => Data) where Description => Alert_Message.Description))
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Success = False
@@ -397,7 +397,7 @@ states:
     variables:
       - "Success : Boolean"
     actions:
-      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.ALERT, Description => Error))
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Data'Length, Data => Data) where Description => Error))
     transitions:
       - target: ERROR.SEND_REMOTE
         condition: Network_Send_Enabled = True

@@ -32,61 +32,69 @@ types:
   - "Hash_Context is private"
 variables:
   - "Application_Layer_Protocol_Negotiation_Received : Boolean := False"
+  - "Binders : TLS_Handshake.PSK_Binder_Entries := Initialize (4096 * 8)"
+  - "CCR_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
   - "CH_Cookie_Prepared : Boolean := False"
   - "CH_Key_Share_Prepared : Boolean := False"
   - "CH_PSK_Prepared : Boolean := False"
+  - "Certificate_Authorities : TLS_Handshake.Distinguished_Names := Initialize (4096 * 8)"
   - "Certificate_Authorities_Received : Boolean := False"
   - "Certificate_Request_Received : Boolean := False"
+  - "Client_Handshake_Traffic_Secret : GreenTLS.Content := Initialize (512)"
   - "Client_Hello_1_Hash : Hash_Context"
   - "Client_Hello_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
   - "Client_Shares : TLS_Handshake.Key_Share_Entries := Initialize (4096 * 8)"
   - "Connection : GreenTLS.Connection := Initialize (4096 * 8)"
+  - "DHE_Accepted : Boolean := False"
+  - "Derived_Handshake_Secret : GreenTLS.Content := Initialize (512)"
   - "Early_Data_Received : Boolean := False"
   - "Early_Secret : GreenTLS.Content := Initialize (512)"
-  - "Derived_Handshake_Secret : GreenTLS.Content := Initialize (512)"
-  - "Client_Handshake_Traffic_Secret : GreenTLS.Content := Initialize (512)"
-  - "Server_Handshake_Traffic_Secret : GreenTLS.Content := Initialize (512)"
+  - "Encrypted_Extensions_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
   - "Extensions_List : TLS_Handshake.Extensions := Initialize (4096 * 8)"
   - "Hash_Length : GreenTLS.KM_Length"
   - "Heartbeat_Received : Boolean := False"
   - "Identity_Index : TLS_Handshake.Identity_Index"
   - "Keystore_Message : GreenTLS.Keystore_Message := Initialize (192)"
+  - "Max_Fragment_Length : TLS_Handshake.Max_Fragment_Length_Value"
   - "Max_Fragment_Length_Received : Boolean := False"
-  - "Oid_Filters_Received : Boolean := False"
+  - "OID_Filters : TLS_Handshake.Filters := Initialize (4096 * 8)"
+  - "OID_Filters_Received : Boolean := False"
   - "PSKs : GreenTLS.PSKs := Initialize (4096 * 8)"
   - "Pre_Shared_Key_CH : TLS_Handshake.Pre_Shared_Key_CH := Initialize (4096 * 8)"
   - "Retry_Request_Received : Boolean := False"
   - "Selected_Group : TLS_Handshake.Named_Group"
-  - "Encrypted_Extensions_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+  - "Server_Handshake_Traffic_Secret : GreenTLS.Content := Initialize (512)"
   - "Server_Hello_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+  - "Server_Name_Extension : TLS_Handshake.Extension := Initialize (4096 * 8)"
   - "Server_Name_Received : Boolean := False"
   - "Server_Preferred_Groups : TLS_Handshake.Supported_Groups := Initialize (176)"
+  - "Signature_Algorithms : TLS_Handshake.Signature_Schemes := Initialize (4096 * 8)"
+  - "Signature_Algorithms_Cert : TLS_Handshake.Signature_Schemes := Initialize (4096 * 8)"
   - "Signature_Algorithms_Cert_Received : Boolean := False"
   - "Signature_Algorithms_Received : Boolean := False"
   - "Success : Boolean"
   - "Supported_Groups : TLS_Handshake.Named_Groups := Initialize (160)"
   - "Supported_Groups_Received : Boolean := False"
   - "Transcript_Hash : Hash_Context"
-  - "Binders : TLS_Handshake.PSK_Binder_Entries := Initialize (4096 * 8)"
-  - "Server_Name_Extension : TLS_Handshake.Extension := Initialize (4096 * 8)"
-  - "Max_Fragment_Length : TLS_Handshake.Max_Fragment_Length_Value"
 renames:
+  - "Certificate_Message : TLS_Handshake.Certificate renames CCR_Handshake_Message.Payload"
+  - "Certificate_Request_Message : TLS_Handshake.Certificate_Request renames CCR_Handshake_Message.Payload"
   - "Client_Hello_Message : TLS_Handshake.Client_Hello renames Client_Hello_Handshake_Message.Payload"
-  - "Server_Hello_Message : TLS_Handshake.Server_Hello renames Server_Hello_Handshake_Message.Payload"
   - "Encrypted_Extensions_Message : TLS_Handshake.Encrypted_Extensions renames Encrypted_Extensions_Handshake_Message.Payload"
+  - "Server_Hello_Message : TLS_Handshake.Server_Hello renames Server_Hello_Handshake_Message.Payload"
 functions:
-  - "Select_Supported_Groups (Server_Preferred_Groups : TLS_Handshake.Named_Groups; Supported_Groups : TLS_Handshake.Named_Groups) return TLS_Handshake.Named_Groups"
-  - "Empty_Hash return Hash_Context"
-  - "Update_Hash (Context : Hash_Context; Data : Payload) return Hash_Context"
-  - "Get_Hash (Context : Hash_Context) return GreenTLS.Content"
-  - "Truncate_Client_Hello (Client_Hello : TLS_Handshake.Handshake) return GreenTLS.Content"
-  - "HKDF_Extract (Salt : GreenTLS.Content; IKM : GreenTLS.Content) return GreenTLS.Content"
-  - "HKDF_Expand_Label (Secret : GreenTLS.Content; Label : String; Context : GreenTLS.Content; Length : GreenTLS.KM_Length) return GreenTLS.Content"
-  - "Derive_Secret (Secret : GreenTLS.Content; Label : String; Transcript_Hash : GreenTLS.Content) return GreenTLS.Content"
-  - "Hash_Length (Cipher_Suite : TLS_Handshake.Cipher_Suite) return GreenTLS.KM_Length"
-  - "Calculate_Binders_Length (PSKs : GreenTLS.PSKs) return RFLX.Types.Bit_Length"
   - "Calculate_Binders (PSKs : GreenTLS.PSKs; Transcript_Hash : GreenTLS.Content) return TLS_Handshake.PSK_Binder_Entries"
+  - "Calculate_Binders_Length (PSKs : GreenTLS.PSKs) return RFLX.Types.Bit_Length"
   - "Calculate_ECDHE_Key (Client_Share : TLS_Handshake.Key_Share_Entry; Server_Share : TLS_Handshake.Key_Share_Entry) return GreenTLS.Content"
+  - "Derive_Secret (Secret : GreenTLS.Content; Label : String; Transcript_Hash : GreenTLS.Content) return GreenTLS.Content"
+  - "Empty_Hash return Hash_Context"
+  - "Get_Hash (Context : Hash_Context) return GreenTLS.Content"
+  - "HKDF_Expand_Label (Secret : GreenTLS.Content; Label : String; Context : GreenTLS.Content; Length : GreenTLS.KM_Length) return GreenTLS.Content"
+  - "HKDF_Extract (Salt : GreenTLS.Content; IKM : GreenTLS.Content) return GreenTLS.Content"
+  - "Hash_Length (Cipher_Suite : TLS_Handshake.Cipher_Suite) return GreenTLS.KM_Length"
+  - "Select_Supported_Groups (Server_Preferred_Groups : TLS_Handshake.Named_Groups; Supported_Groups : TLS_Handshake.Named_Groups) return TLS_Handshake.Named_Groups"
+  - "Truncate_Client_Hello (Client_Hello : TLS_Handshake.Handshake) return GreenTLS.Content"
+  - "Update_Hash (Context : Hash_Context; Data : Payload) return Hash_Context"
 states:
   - name: START
     actions:
@@ -345,6 +353,7 @@ states:
   - name: WAIT_SH.EXTENSIONS_DHE
     actions:
       - Selected_Group := TLS_Handshake.Key_Share_SH ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Group
+      - DHE_Accepted := True
     transitions:
       - target: SEND_ALERT_ILLEGAL_PARAMETER
         condition: not (for any S in TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Shares => S.Group = Selected_Group)
@@ -547,145 +556,150 @@ states:
         doc: rfc6066.txt+435:50-438:32
       - target: WAIT_EE.PARSE_EXTENSIONS
 
-  - name: WAIT_EE.PROCESS_SUPPORTED_GROUPS  # CONTINUE
+  - name: WAIT_EE.PROCESS_SUPPORTED_GROUPS
     actions:
-      - Server_Supported_Groups := TLS_Handshake.Supported_Groups ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_GROUPS]\'Head.Data).Groups  # FIXME: store after successful handshake
+      - Server_Preferred_Groups := TLS_Handshake.Supported_Groups ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_GROUPS]\'Head.Data).Groups  # FIXME: store after successful handshake
       - Supported_Groups_Received := True
     doc: rfc8446.txt+2651:4-2661:68
     transitions:
       - target: WAIT_EE.PARSE_EXTENSIONS
 
   - name: WAIT_EE.PROCESS_HEARTBEAT
+    variables:
+      - "Server_Heartbeat_Mode : TLS_Handshake.Heartbeat_Mode"
     actions:
-      - Server_Heartbeat_Mode := TLS_Heartbeat.Heartbeat ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_HEARTBEAT]\'Head.Data).Mode
-      - GreenTLS.Heartbeat_Control_Message'Write (Record_Control_Channel, GreenTLS.Heartbeat_Control_Message (Tag => GreenTLS.HEARTBEAT_MODE, Receive => Configuration.Heartbeat_Mode, Send => Server_Heartbeat_Mode))
+      - Server_Heartbeat_Mode := TLS_Handshake.Heartbeat ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_HEARTBEAT]\'Head.Data).Mode
+      - Success := Write (Record_Control_Channel, GreenTLS.Control_Message'(Tag => GreenTLS.HEARTBEAT_MODE, Length => Data'Length, Payload => Data) where Data = GreenTLS.Heartbeat_Control_Message'(Local => Configuration.Heartbeat_Mode, Remote => Server_Heartbeat_Mode))
       - Heartbeat_Received := True
     doc: rfc6520.txt+138:4-149:61
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: WAIT_EE.PARSE_EXTENSIONS
 
   - name: WAIT_EE.PROCESS_APPLICATION_LAYER_PROTOCOL_NEGOTIATION
+    variables:
+      - "Protocols : TLS_Handshake.Protocol_Names := Initialize (4096 * 8)"
     actions:
-      - Protocol_Name_List := TLS_Heartbeat.Protocol_Name_List ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_APPLICATION_LAYER_PROTOCOL_NEGOTIATION]\'Head.Data).Protocol_Name_List
-      - GreenTLS.Application_Message'Write (Application_Control_Channel, GreenTLS.Application_Message (APPLICATION_PROTOCOL, Protocol_Name_List'Head))
+      - Protocols := TLS_Handshake.Protocol_Name_List ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_APPLICATION_LAYER_PROTOCOL_NEGOTIATION]\'Head.Data).Protocol_Name_List
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(GreenTLS.APPLICATION_PROTOCOL, Protocols'Head))
       - Application_Layer_Protocol_Negotiation_Received := True
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: SEND_ALERT_ILLEGAL_PARAMETER
-        condition: Protocol_Name_List'Length /= 1
+        condition: Protocols'Length /= 1
         doc: rfc7301.txt+181:53-185:30
       - target: SEND_ALERT_ILLEGAL_PARAMETER
-        condition: (for any E in Configuration.Protocol_Name_List => E.Name = Protocol_Name_List\'Head)
+        condition: (for all P in Configuration.Protocols => P /= Protocols\'Head)
         doc: rfc7301.txt+175:4-177:54
       - target: WAIT_EE.PARSE_EXTENSIONS
 
   - name: WAIT_EE.PROCESS_EARLY_DATA
     actions:
       - Early_Data_Received := True
+    doc: rfc8446.txt+2993:7-2998:45
     transitions:
       - target: WAIT_EE.PARSE_EXTENSIONS
 
   - name: WAIT_EE.CHECK_EXTENSIONS
     actions:
-      - Transcript_Hash := Update_Transcript_Hash (Transcript_Hash, Encrypted_Extensions_Message)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, Encrypted_Extensions_Message'Payload)
     transitions:
       - target: SEND_ALERT_MISSING_EXTENSION
         condition: Configuration.Server_Name_Enabled = True and Server_Name_Received = False
       - target: SEND_ALERT_MISSING_EXTENSION
         condition: Configuration.Max_Fragment_Length_Enabled = True and Max_Fragment_Length_Received = False
-      - target: NO_EARLY_DATA
+      - target: WAIT_EE.NO_EARLY_DATA
         condition: Configuration.Early_Data_Enabled = True and Early_Data_Received = False
+      - target: WAIT_EE.DISPATCH
+
+  - name: WAIT_EE.NO_EARLY_DATA
+    actions:
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => APPLICATION_NO_EARLY_DATA, Length => Data'Length, Data => Data) where GreenTLS.Application_No_Early_Data_Message'(null message))
+    transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: WAIT_EE.DISPATCH
 
   - name: WAIT_EE.DISPATCH
     actions:
     transitions:
-      - target: WAIT_FINISHED
-        condition: Configuration.Key_Exchange_Mode = PSK_KE
       - target: WAIT_CERT_CR
-        condition: Configuration.Key_Exchange_Mode = PSK_DHE_KE
-
-  - name: NO_EARLY_DATA
-    actions:
-      - GreenTLS.Application_Message'Write (Application_Control_Channel, GreenTLS.Application_Message (EARLY_DATA, False))
-    transitions:
-      - target: WAIT_EE.DISPATCH
+        condition: DHE_Accepted = True
+      - target: WAIT_FINISHED
 
   - name: WAIT_CERT_CR
     actions:
-      - CCR_Message := TLS_Handshake.Handshake'Read (Record_Data_Channel)
+      - CCR_Handshake_Message := TLS_Handshake.Handshake'Read (Record_Data_Channel)
     transitions:
       - target: SEND_ALERT_DECODE_ERROR
-        condition: CCR_Message'Valid = False
-      - target: PARSE_CERT
-        condition: CCR_Message.Tag = TLS_Handshake.HANDSHAKE_CERTIFICATE
-      - target: PARSE_CR
-        condition: CCR_Message.Tag = TLS_Handshake.HANDSHAKE_CERTIFICATE_REQUEST
+        condition: CCR_Handshake_Message'Valid = False
       - target: SEND_ALERT_UNEXPECTED_MESSAGE
+        condition: CCR_Handshake_Message.Tag /= TLS_Handshake.HANDSHAKE_CERTIFICATE and CCR_Handshake_Message.Tag /= TLS_Handshake.HANDSHAKE_CERTIFICATE_REQUEST
+      - target: PARSE_CERT
+        condition: Certificate_Message'Valid = True
+      - target: PARSE_CR
+        condition: Certificate_Request_Message'Valid = True
+      - target: SEND_ALERT_DECODE_ERROR
 
   - name: PARSE_CR
     actions:
       - Certificate_Request_Received := True
-      - Certificate_Request_Message := CCR_Message
-    transitions:
-      - target: PARSE_CR.PARSE
-
-  - name: PARSE_CR.PARSE
-    actions:
-      - Certificate_Request_Message_Extensions := TLS_Handshake.Certificate_Request (Certificate_Request_Message.Payload).Extensions
     transitions:
       - target: PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
-        condition: Certificate_Authorities_Received = False and (for any E in Certificate_Request_Message_Extensions => (E.Tag = TLS_Handshake.EXTENSION_CERTIFICATE_AUTHORITIES))
+        condition: Certificate_Authorities_Received = False and (for any E in Certificate_Request_Message.Extensions => (E.Tag = TLS_Handshake.EXTENSION_CERTIFICATE_AUTHORITIES))
       - target: PARSE_CR.PARSE_OID_FILTERS
-        condition: Oid_Filters_Received = False and (for any E in Certificate_Request_Message_Extensions => (E.Tag = TLS_Handshake.EXTENSION_OID_FILTERS))
+        condition: OID_Filters_Received = False and (for any E in Certificate_Request_Message.Extensions => (E.Tag = TLS_Handshake.EXTENSION_OID_FILTERS))
       - target: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
-        condition: Signature_Algorithms_Received = False and (for any E in Certificate_Request_Message_Extensions => (E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS))
+        condition: Signature_Algorithms_Received = False and (for any E in Certificate_Request_Message.Extensions => (E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS))
       - target: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
-        condition: Signature_Algorithms_Cert_Received = False and (for any E in Certificate_Request_Message_Extensions => (E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT))
+        condition: Signature_Algorithms_Cert_Received = False and (for any E in Certificate_Request_Message.Extensions => (E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT))
       - target: PARSE_CR.CHECK_EXTENSIONS
 
   - name: PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
     actions:
       - Certificate_Authorities_Received := True
-      - Certificate_Authorities := TLS_Handshake.Certificate_Authorities ([for E in Certificate_Request_Message_Extensions => E when E.Tag = TLS_Handshake.EXTENSION_CERTIFICATE_AUTHORITIES]\'Head.Data).Authorities
+      - Certificate_Authorities := TLS_Handshake.Certificate_Authorities ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_CERTIFICATE_AUTHORITIES]\'Head.Data).Authorities
     transitions:
-      - target: PARSE_CR.PARSE
+      - target: PARSE_CR
 
   - name: PARSE_CR.PARSE_OID_FILTERS
     actions:
-      - Oid_Filters_Received := True
-      - OID_Filters := TLS_Handshake.OID_Filters ([for E in Certificate_Request_Message_Extensions => E when E.Tag = TLS_Handshake.EXTENSION_OID_FILTERS]\'Head.Data).Filters
+      - OID_Filters_Received := True
+      - OID_Filters := TLS_Handshake.OID_Filters ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_OID_FILTERS]\'Head.Data).Filters
     transitions:
-      - target: PARSE_CR.PARSE
+      - target: PARSE_CR
 
   - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
     actions:
       - Signature_Algorithms_Received := True
-      - Signature_Algorithms := TLS_Handshake.Signature_Algorithms ([for E in Certificate_Request_Message_Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS]\'Head.Data).Algorithms
+      - Signature_Algorithms := TLS_Handshake.Signature_Algorithms ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS]\'Head.Data).Algorithms
     transitions:
       - target: SEND_ALERT_ILLEGAL_PARAMETER
         condition: for all A in Configuration.Signature_Algorithms => not A in Signature_Algorithms
-      - target: PARSE_CR.PARSE
+      - target: PARSE_CR
 
   - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
     actions:
       - Signature_Algorithms_Cert_Received := True
-      - Signature_Algorithms_Cert := TLS_Handshake.Signature_Algorithms_Cert ([for E in Certificate_Request_Message_Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT]\'Head.Data).Algorithms
+      - Signature_Algorithms_Cert := TLS_Handshake.Signature_Algorithms_Cert ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT]\'Head.Data).Algorithms
     transitions:
       - target: SEND_ALERT_ILLEGAL_PARAMETER
         condition: for all A in Configuration.Signature_Algorithms_Cert => not A in Signature_Algorithms_Cert
-      - target: PARSE_CR.PARSE
+      - target: PARSE_CR
 
   - name: PARSE_CR.CHECK_EXTENSIONS
     actions:
-      - Transcript_Hash := Update_Transcript_Hash (Transcript_Hash, CCR_Message)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, CCR_Handshake_Message'Payload)
     transitions:
       - target: SEND_ALERT_MISSING_EXTENSION
         condition: Signature_Algorithms_Received = False
       - target: WAIT_CERT
 
-  - name: WAIT_CERT
+  - name: WAIT_CERT  # TODO: CONTINUE
     actions:
-      - CCR_Message := TLS_Handshake.Handshake'Read (Record_Data_Channel)
+      - CCR_Handshake_Message := TLS_Handshake.Handshake'Read (Record_Data_Channel)
     transitions:
       - target: SEND_ALERT_DECODE_ERROR
         condition: CCR_Message'Valid = False
@@ -699,7 +713,7 @@ states:
   - name: PARSE_CERT
     actions:
       - Server_Certificate_Message := CCR_Message
-      - Transcript_Hash := Update_Transcript_Hash (Transcript_Hash, Server_Certificate_Message)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, Server_Certificate_Message'Payload)
     transitions:
       - target: PARSE_CERT.PARSE_ENTRIES
 
@@ -748,7 +762,7 @@ states:
       - Ensure RSA signatures use an RSASSA-PSS algorithm
       - Ensure SHA-1 is not used
       - Verify CertificateVerify.Signature using Transcript_Hash and public key of Certificate using CertificateVerify.Algorithm
-      - Transcript_Hash := Update_Transcript_Hash (Transcript_Hash, CertificateVerify_Message)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, CertificateVerify_Message'Payload)
     transitions:
       - target: SEND_ALERT_UNEXPECTED_MESSAGE
         condition: other message than CertificateVerify received
@@ -765,7 +779,7 @@ states:
       - Finished_Key := HKDF_Expand_Label (Client_Handshake_Traffic_Secret, "finished", Get_Hash (Empty_Hash), Hash_Length)
       - Verify_Data := HMAC (Finished_Key, Get_Hash (Transcript_Hash))
       - Check Finished.Verify_Data = Verify_Data
-      - Transcript_Hash := Update_Transcript_Hash (Transcript_Hash, Finished_Message)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, Finished_Message'Payload)
       - Master_Secret := HKDF_Extract (Derived_Handshake_Secret, 0)
       - Derived_Handshake_Secret := null
       - Client_Application_Traffic_Secret := Derive_Secret (Master_Secret, "c ap traffic", Get_Hash (Transcript_Hash))
@@ -791,7 +805,7 @@ states:
       - Check Certificate_Request_Received
       - Read available certificates from Configuration
       - Filter certificates compatible with Certificate_Authorities if Certificate_Authorities_Received
-      - Filter certificates compatible with Oid_Filters if Oid_Filters_Received
+      - Filter certificates compatible with OID_Filters if OID_Filters_Received
       - Filter certificates compatible with Signature_Algorithms if Signature_Algorithms_Received and not Signature_Algorithms_Cert_Received
       - Filter certificates compatible with Signature_Algorithms_Cert if Signature_Algorithms_Cert_Received
     transitions:
@@ -807,7 +821,7 @@ states:
       - Do OCSP request based on selected certificate and Status_Request if Status_Request_Received
       - Create Certificate using Configuration
       - Send Certificate to Record_Data_Channel
-      - Transcript_Hash := Update_Transcript_Hash (Transcript_Hash, Certificate_Message)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, Certificate_Message'Payload)
     transitions:
       - target: SEND_CERTIFICATE_VERIFY
 
@@ -815,7 +829,7 @@ states:
     actions:
       - Create empty Certificate
       - Send Certificate to Record_Data_Channel
-      - Transcript_Hash := Update_Transcript_Hash (Transcript_Hash, Certificate_Message)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, Certificate_Message'Payload)
     transitions:
       - target: SEND_FINISHED
 
@@ -824,7 +838,7 @@ states:
       - Select one algorithm of Signature_Algorithms
       - Create CertificateVerify with Transcript_Hash using selected algorithm
       - Send CertificateVerify to Record_Data_Channel
-      - Transcript_Hash := Update_Transcript_Hash (Transcript_Hash, CertificateVerify_Message)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, CertificateVerify_Message'Payload)
     transitions:
       - target: SEND_FINISHED
 
@@ -884,7 +898,7 @@ states:
       - target: CONNECTED.PHA_PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
         condition: Pha_Extension_Type = "Certificate_Authorities"
       - target: CONNECTED.PHA_PARSE_CR.PARSE_OID_FILTERS
-        condition: Pha_Extension_Type = "Oid_Filters"
+        condition: Pha_Extension_Type = "OID_Filters"
       - target: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
         condition: Pha_Extension_Type = "Signature_Algorithms"
       - target: CONNECTED.PHA_PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
@@ -910,8 +924,8 @@ states:
 
   - name: CONNECTED.PHA_PARSE_CR.PARSE_OID_FILTERS
     actions:
-      - Pha_Oid_Filters_Received := True
-      - Pha_Oid_Filters := Pha_Extension
+      - Pha_OID_Filters_Received := True
+      - Pha_OID_Filters := Pha_Extension
     transitions:
       - target: CONNECTED.PHA_PARSE_CR
 
@@ -945,7 +959,7 @@ states:
     actions:
       - Read available Pha_Certificates from Configuration
       - Filter Pha_Certificates compatible with Pha_Certificate_Authorities if Pha_Certificate_Authorities_Received
-      - Filter Pha_Certificates compatible with Pha_Oid_Filters if Pha_Oid_Filters_Received
+      - Filter Pha_Certificates compatible with Pha_OID_Filters if Pha_OID_Filters_Received
       - Filter Pha_Certificates compatible with Pha_Signature_Algorithms if Pha_Signature_Algorithms_Received and not Signature_Algorithms_Cert_Received
       - Filter Pha_Certificates compatible with Pha_Signature_Algorithms_Cert if Pha_Signature_Algorithms_Cert_Received
     transitions:

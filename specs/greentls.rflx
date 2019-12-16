@@ -42,28 +42,52 @@ package GreenTLS is
    for Control_Message use (Payload => Key_Update_Message)
       if Tag = KEY_UPDATE_CLIENT or Tag = KEY_UPDATE_SERVER;
 
-   type Heartbeat_Control_Message_Flag is (HEARTBEAT_ENABLED, HEARTBEAT_DISABLED) with Size => 4;
+   type Heartbeat_Mode is (HEARTBEAT_ENABLED, HEARTBEAT_DISABLED) with Size => 4;
 
    type Heartbeat_Control_Message is
       message
-         Receive : Heartbeat_Control_Message_Flag;
-         Send : Heartbeat_Control_Message_Flag;
+         Local : Heartbeat_Mode;
+         Remote : TLS_Handshake.Heartbeat_Mode;
       end message;
 
    for Control_Message use (Payload => Heartbeat_Control_Message)
       if Tag = HEARTBEAT_MODE;
 
-   type Application_Control_Message_Type is (SHUTDOWN, ALERT) with Size => 8;
+   type Application_Control_Message_Type is (APPLICATION_SHUTDOWN, APPLICATION_ALERT, APPLICATION_PROTOCOL, APPLICATION_NO_EARLY_DATA) with Size => 8;
+
+   type Application_Control_Message_Length is range 0 .. 2**8 - 1 with Size => 8;
 
    type Application_Control_Message is
       message
-         Tag : Application_Control_Message_Type
-            then Description
-               if Tag = ALERT,
-            then null
-               if Tag /= ALERT;
+         Tag : Application_Control_Message_Type;
+         Length : Length;
+         Data : Payload;
+      end message;
+
+   type Application_Shutdown_Message is null message;
+
+   for Application_Control_Message use (Data => Application_Shutdown_Message)
+      if Tag = APPLICATION_SHUTDOWN;
+
+   type Application_Alert_Message is
+      message
          Description : TLS_Alert.Alert_Description;
       end message;
+   for Application_Control_Message use (Data => Application_Alert_Message)
+      if Tag = APPLICATION_ALERT;
+
+   type Application_Protocol_Message is
+      message
+         Protocol : TLS_Handshake.Protocol_Name;
+      end message;
+
+   for Application_Control_Message use (Data => Application_Protocol_Message)
+      if Tag = APPLICATION_PROTOCOL;
+
+   type Application_No_Early_Data_Message is null message;
+
+   for Application_Control_Message use (Data => Application_No_Early_Data_Message)
+      if Tag = APPLICATION_NO_EARLY_DATA;
 
    type Heartbeat_Data_Length is range 0 .. 2**14 with Size => 16;
 
@@ -107,12 +131,17 @@ package GreenTLS is
             then Key_Shares
                with Length => Key_Shares_Length;
          Key_Shares : TLS_Handshake.Key_Share_Entries;
+         Protocols_Length : TLS_Handshake.Protocols_Length
+            then Protocols
+               with Length => Protocols_Length;
+         Protocols : TLS_Handshake.Protocol_Names;
          Server_Authentication_Enabled : Boolean;
          Post_Handshake_Auth_Enabled : Boolean;
          Early_Data_Enabled : Boolean;
          Server_Name_Enabled : Boolean;
          Max_Fragment_Length_Enabled : Boolean;
          Max_Fragment_Length : TLS_Handshake.Max_Fragment_Length_Value;
+         Heartbeat_Mode : Heartbeat_Mode;
       end message;
 
    type Name_Length is 1 .. 253 with Size => 8;
