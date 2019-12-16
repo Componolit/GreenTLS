@@ -35,7 +35,7 @@ package TLS_Handshake is
       EXTENSION_SUPPORTED_GROUPS => 10,
       EXTENSION_SIGNATURE_ALGORITHMS => 13,
       EXTENSION_USE_SRTP => 14,  -- unsupported
-      EXTENSION_HEARTBEAT => 15,  -- unsupported
+      EXTENSION_HEARTBEAT => 15,
       EXTENSION_APPLICATION_LAYER_PROTOCOL_NEGOTIATION => 16,
       EXTENSION_SIGNED_CERTIFICATE_TIMESTAMP => 18,  -- unsupported
       EXTENSION_CLIENT_CERTIFICATE_TYPE => 19,  -- unsupported
@@ -469,6 +469,15 @@ package TLS_Handshake is
       if Tag = EXTENSION_SIGNATURE_ALGORITHMS_CERT;
    for CR_Extension use (Data => Signature_Algorithms_Cert)
       if Tag = EXTENSION_SIGNATURE_ALGORITHMS_CERT;
+
+   -- Heartbeat Extension
+
+   type Heartbeat_Mode is (PEER_ALLOWED_TO_SEND => 1, PEER_NOT_ALLOWED_TO_SEND => 2) with Size => 8;
+
+   type Heartbeat is
+      message
+         Mode : Heartbeat_Mode;
+      end message;
 
    -- Certificate Authorities Extension
 
