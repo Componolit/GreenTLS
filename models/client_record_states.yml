@@ -145,11 +145,13 @@ states:
         condition: Handshake_Control_Message'Valid = False
         doc: rfc8446.txt+4977:4-4979:38
       - target: KEY_UPDATE.CLIENT
-        condition: Handshake_Control_Message.Tag = KEY_UPDATE_CLIENT
+        condition: Handshake_Control_Message.Tag = GreenTLS.KEY_UPDATE_CLIENT
       - target: KEY_UPDATE.SERVER
-        condition: Handshake_Control_Message.Tag = KEY_UPDATE_SERVER
+        condition: Handshake_Control_Message.Tag = GreenTLS.KEY_UPDATE_SERVER
       - target: HEARTBEAT_CONTROL
-        condition: Handshake_Control_Message.Tag = HEARTBEAT_MODE
+        condition: Handshake_Control_Message.Tag = GreenTLS.HEARTBEAT_MODE
+      - target: HANDSHAKE_ALERT
+        condition: Handshake_Control_Message.Tag = GreenTLS.ALERT
 
   - name: KEY_UPDATE.CLIENT
     actions:
@@ -174,6 +176,12 @@ states:
         doc: rfc8446.txt+4977:4-4979:38
       - target: IDLE
 
+  - name: HANDSHAKE_ALERT
+    actions:
+      - TLS_Record_Message := TLS_Record.TLS_Record'(Tag => TLS_Record.ALERT, Legacy_Record_Version => TLS_Record.TLS_1_2, Length => Alert_Message'Length, Fragment => Alert_Message.Data) where Alert_Message = TLS_Alert.TLS_Alert'(Level => TLS_Alert.FATAL, Description => GreenTLS.Alert_Message (Handshake_Control_Message.Data).Description)
+    transitions:
+      - target: NETWORK_OUT.SEND
+
   - name: HANDSHAKE
     actions:
       - Handshake_Message := Read (Handshake_Data_Channel)
@@ -182,17 +190,7 @@ states:
       - target: ERROR.INTERNAL_ERROR
         condition: Handshake_Message'Valid = False
         doc: rfc8446.txt+4977:4-4979:38
-      - target: IDLE
-        condition: Network_Send_Enabled = False
-      - target: ERROR.INTERNAL_ERROR
-        condition: Record_Protection = True and Client_Write_Key_Received = False
-        doc: rfc8446.txt+4977:4-4979:38
-      - target: NETWORK_OUT.SEND_UNENCRYPTED
-        condition: Record_Protection = False and Client_Write_Key_Received = False
-      - target: NETWORK_OUT.SEND_ENCRYPTED
-        condition: Record_Protection = True and Client_Write_Key_Received = True
-      - target: ERROR.INTERNAL_ERROR
-        doc: rfc8446.txt+4977:4-4979:38
+      - target: NETWORK_OUT.SEND
 
   - name: NETWORK_IN
     actions:
@@ -324,6 +322,21 @@ states:
     transitions:
       - target: NETWORK_OUT.SEND_ENCRYPTED
 
+  - name: NETWORK_OUT.SEND
+    actions:
+    transitions:
+      - target: IDLE
+        condition: Network_Send_Enabled = False
+      - target: ERROR.INTERNAL_ERROR
+        condition: Record_Protection = True and Client_Write_Key_Received = False
+        doc: rfc8446.txt+4977:4-4979:38
+      - target: NETWORK_OUT.SEND_UNENCRYPTED
+        condition: Record_Protection = False and Client_Write_Key_Received = False
+      - target: NETWORK_OUT.SEND_ENCRYPTED
+        condition: Record_Protection = True and Client_Write_Key_Received = True
+      - target: ERROR.INTERNAL_ERROR
+        doc: rfc8446.txt+4977:4-4979:38
+
   - name: NETWORK_OUT.SEND_UNENCRYPTED
     variables:
       - "Success : Boolean"
@@ -397,7 +410,7 @@ states:
     variables:
       - "Success : Boolean"
     actions:
-      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Data'Length, Data => Data) where Description => Error))
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Data'Length, Data => Data) where Data = GreenTLS.Alert_Message'(Description => Error))
     transitions:
       - target: ERROR.SEND_REMOTE
         condition: Network_Send_Enabled = True

@@ -13,8 +13,8 @@ package GreenTLS is
          Data : Payload;
       end message;
 
-   type Control_Message_Type is (KEY_UPDATE_CLIENT, KEY_UPDATE_SERVER, HEARTBEAT_MODE) with Size => 8;
-   type Control_Message_Length is range 0 .. 1200;
+   type Control_Message_Type is (KEY_UPDATE_CLIENT, KEY_UPDATE_SERVER, HEARTBEAT_MODE, ALERT) with Size => 8;
+   type Control_Message_Length is range 0 .. 2**16 - 1 with Size => 16;
 
    type Control_Message is
       message
@@ -22,7 +22,7 @@ package GreenTLS is
          Length : Control_Message_Length
             then Payload
                with Length => Length;
-         Payload : Payload;
+         Data : Payload;
       end message;
 
    type Key_Length is range 8 .. 64 with Size => 8;
@@ -39,8 +39,8 @@ package GreenTLS is
          IV : Payload;
       end message;
 
-   for Control_Message use (Payload => Key_Update_Message)
-      if Tag = KEY_UPDATE_CLIENT or Tag = KEY_UPDATE_SERVER;
+   for Control_Message use (Data => Key_Update_Message)
+      if Tag = KEY_UPDATE_CLIENT or Tag = KEY_UDPATE_SERVER;
 
    type Heartbeat_Mode is (HEARTBEAT_ENABLED, HEARTBEAT_DISABLED) with Size => 4;
 
@@ -50,8 +50,16 @@ package GreenTLS is
          Remote : TLS_Handshake.Heartbeat_Mode;
       end message;
 
-   for Control_Message use (Payload => Heartbeat_Control_Message)
+   for Control_Message use (Data => Heartbeat_Control_Message)
       if Tag = HEARTBEAT_MODE;
+
+   type Alert_Message is
+      message
+         Description : TLS_Alert.Alert_Description;
+      end message;
+
+   for Control_Message use (Data => Alert_Message)
+      if Tag = ALERT;
 
    type Application_Control_Message_Type is (APPLICATION_SHUTDOWN, APPLICATION_ALERT, APPLICATION_PROTOCOL, APPLICATION_NO_EARLY_DATA) with Size => 8;
 
@@ -69,11 +77,7 @@ package GreenTLS is
    for Application_Control_Message use (Data => Application_Shutdown_Message)
       if Tag = APPLICATION_SHUTDOWN;
 
-   type Application_Alert_Message is
-      message
-         Description : TLS_Alert.Alert_Description;
-      end message;
-   for Application_Control_Message use (Data => Application_Alert_Message)
+   for Application_Control_Message use (Data => Alert_Message)
       if Tag = APPLICATION_ALERT;
 
    type Application_Protocol_Message is
@@ -205,32 +209,5 @@ package GreenTLS is
 
    for Keystore_Message use (Payload => PSK_Message)
       if Tag = KEYSTORE_RESPONSE and Request = KEYSTORE_REQUEST_PSKS;
-
-   type Record_Control_Type is (SET_KEYS) with Size => 8;
-   type Record_Control_Length is range 0 .. 2**16 - 1 with Size => 16;
-
-   type Record_Control_Message is
-      message
-         Tag : Record_Control_Type;
-         Length : Record_Control_Length
-            then Data
-               with Length => Length * 8;
-         Data : Payload;
-      end message;
-
-   type Record_Keys is
-      message
-         Read_Key_Length : Key_Length
-            then Read_Key
-               with Length => Read_Key_Length * 8;
-         Read_Key : Payload;
-         Write_Key_Length : Key_Length
-            then Write_Key
-               with Length => Write_Key_Length * 8;
-         Write_Key : Payload;
-      end message;
-
-   for Record_Control_Message use (Data => Record_Keys)
-      if Tag = SET_KEYS;
 
 end GreenTLS;

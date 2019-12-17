@@ -50,6 +50,7 @@ variables:
   - "Early_Data_Received : Boolean := False"
   - "Early_Secret : GreenTLS.Content := Initialize (512)"
   - "Encrypted_Extensions_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+  - "Error : TLS_Alert.Alert_Description"
   - "Extensions_List : TLS_Handshake.Extensions := Initialize (4096 * 8)"
   - "Hash_Length : GreenTLS.KM_Length"
   - "Heartbeat_Received : Boolean := False"
@@ -270,8 +271,11 @@ states:
       - Client_Early_Traffic_Secret := Derive_Secret (Early_Secret.Data, "c e traffic", Get_Hash (Transcript_Hash))
       - Client_Write_Key := HKDF_Expand_Label (Client_Early_Traffic_Secret.Data, "key", Get_Hash (Empty_Hash), Keystore_Message.Key_Length)
       - Client_Write_IV := HKDF_Expand_Label (Client_Early_Traffic_Secret.Data, "iv", Get_Hash (Empty_Hash), Keystore_Message.IV_Length)
-      - Delete (Keystore_Message)
+      - Keystore_Message := null
       - Success := Write (Record_Data_Channel, GreenTLS.Control_Message (Tag => KEY_UDPATE_CLIENT, Length => KU'Length, Payload => KU) where KU = GreenTLS.Key_Update_Message'(Key_Length => Client_Write_Key'Length, Key => Client_Write_Key.Data, IV_Length => Client_Write_IV'Length, IV => Client_Write_IV.Data))
+      - Client_Early_Traffic_Secret := null
+      - Client_Write_Key := null
+      - Client_Write_IV := null
     doc: rfc8446.txt+2938:43-2940:30
     transitions:
       - target: ERROR.INTERNAL_ERROR
@@ -283,30 +287,30 @@ states:
       - Server_Hello_Handshake_Message := Read (Record_Data_Channel)
       - Transcript_Hash := Update_Hash (Transcript_Hash, Server_Hello_Handshake_Message'Payload)
     transitions:
-      - target: SEND_ALERT_DECODE_ERROR
+      - target: ERROR.DECODE_ERROR
         condition: Server_Hello_Handshake_Message'Valid = False
-      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+      - target: ERROR.UNEXPECTED_MESSAGE
         condition: Server_Hello_Handshake_Message.Tag /= TLS_Handshake.HANDSHAKE_SERVER_HELLO
-      - target: SEND_ALERT_DECODE_ERROR
+      - target: ERROR.DECODE_ERROR
         condition: Server_Hello_Message'Valid = False
-      - target: SEND_ALERT_PROTOCOL_VERSION
+      - target: ERROR.PROTOCOL_VERSION
         condition: Server_Hello_Message.Legacy_Version /= GreenTLS.TLS_1_2
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: Server_Hello_Message.Legacy_Session_Id_Echo /= 0 or Server_Hello_Message.Legacy_Compression_Method /= 0
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: Server_Hello_Message.Cipher_Suite not in Client_Hello_Message.Cipher_Suites
-      - target: SEND_ALERT_MISSING_EXTENSION
+      - target: ERROR.MISSING_EXTENSION
         condition: for all E in Server_Hello_Message.Extensions => E.Tag /= TLS_Handshake.EXTENSION_SUPPORTED_VERSIONS
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for any E in Server_Hello_Message.Extensions => (E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_VERSIONS and not (GreenTLS.TLS_1_3 in TLS_Handshake.Supported_Versions (E.Data).Versions))
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for any E in Server_Hello_Message.Extensions => not E in Client_Hello_Message.Extensions
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: PSK_DHE_KE not in Configuration.PSK_Key_Exchange_Modes and (for any E in Server_Hello_Message.Extensions => E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE)
         doc: rfc8446.txt+2770:46-2771:59
       - target: WAIT_SH.PARSE_HRR
         condition: Server_Hello_Message.HRR_Extensions'Present and Retry_Request_Received = False
-      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+      - target: ERROR.UNEXPECTED_MESSAGE
         condition: not Server_Hello_Message.HRR_Extensions'Present and Retry_Request_Received = True
       - target: WAIT_SH.EXTENSIONS_PSK
         condition: for any E in Server_Hello_Message.Extensions => E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY
@@ -314,16 +318,16 @@ states:
       - target: WAIT_SH.EXTENSIONS_DHE
         condition: for any E in Server_Hello_Message.Extensions => E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE
         doc: rfc8446.txt+640:45-642:47
-      - target: INVALID_CONFIGURATION
+      - target: ERROR.INVALID_CONFIGURATION
 
   - name: WAIT_SH.EXTENSIONS_PSK
     actions:
       - Identity_Index := TLS_Handshake.Pre_Shared_Key_SH ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY]\'Head.Data).Selected_Identity
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: Identity_Index /= 0 and (for any E in Server_Hello_Message.Extensions => E.Tag = EXTENSION_EARLY_DATA)
         doc: rfc8446.txt+3199:4-3202:29
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for any E in Client_Hello_Message.Extensions => (E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY and TLS_Handshake.Pre_Shared_Key_CH (E.Data).Identities'Length < Identity_Index)
       - target: WAIT_SH.EXTENSIONS_PSK_REQUEST
 
@@ -341,7 +345,7 @@ states:
     actions:
       - Identity_Cipher_Suite := GreenTLS.PSK (Keystore_Message.Payload).Cipher_Suite
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: Identity_Cipher_Suite /= Server_Hello_Message.Cipher_Suite
       - target: WAIT_SH.EXTENSIONS_DHE
         condition: for any E in Server_Hello_Message.Extensions => E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE
@@ -355,7 +359,7 @@ states:
       - Selected_Group := TLS_Handshake.Key_Share_SH ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Group
       - DHE_Accepted := True
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: not (for any S in TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Shares => S.Group = Selected_Group)
         doc: rfc8446.txt+2766:39-2768:55
       - target: SET_RECORD_KEYS
@@ -368,13 +372,13 @@ states:
       - Client_Supported_Groups := TLS_Handshake.Supported_Groups ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_GROUPS]\'Head.Data).Groups
       - Client_Shares := TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Shares
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for any E in Server_Hello_Message.Extensions => E not in Client_Hello_Message.Extensions and E.Tag /= TLS_Handshake.EXTENSION_COOKIE
         doc: rfc8446.txt+1825:70-1829:28
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for any E in Server_Hello_Message.Extensions => E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE and not (TLS_Handshake.Key_Share_HRR (E.Data).Selected_Group in Client_Supported_Groups)
         doc: rfc8446.txt+2736:21-2738:23
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for any E in Server_Hello_Message.Extensions => E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE and (for any S in Client_Shares => S.Group = TLS_Handshake.Key_Share_HRR (E.Data).Selected_Group)
         doc: rfc8446.txt+2738:29-2740:31
       - target: WAIT_SH.PREPARE_CH
@@ -488,6 +492,12 @@ states:
     variables:
       - "Derived_Early_Secret : GreenTLS.Content := Initialize (512)"
       - "Handshake_Secret : GreenTLS.Content := Initialize (512)"
+      - "Client_Read_Key : GreenTLS.Content := Initialize (512)"
+      - "Client_Read_IV : GreenTLS.Content := Initialize (512)"
+      - "Client_Write_Key : GreenTLS.Content := Initialize (512)"
+      - "Client_Write_IV : GreenTLS.Content := Initialize (512)"
+      - "Success_Client : Boolean"
+      - "Success_Server : Boolean"
     actions:
       - Derived_Early_Secret := Derive_Secret (Early_Secret, "derived", Get_Hash (Empty_Hash))
       - Early_Secret := null
@@ -495,31 +505,40 @@ states:
       - Derived_Early_Secret := null
       - Client_Handshake_Traffic_Secret := Derive_Secret (Handshake_Secret, "c hs traffic", Get_Hash (Transcript_Hash))
       - Server_Handshake_Traffic_Secret := Derive_Secret (Handshake_Secret, "s hs traffic", Get_Hash (Transcript_Hash))
-      - Success := Write (Record_Control_Channel, GreenTLS.Record_Control_Message (Tag => SET_KEYS, Length => Data'Length, Data => Data) where Data = GreenTLS.Record_Keys'(Read_Key_Length => Server_Handshake_Traffic_Secret'Length, Read_Key => Server_Handshake_Traffic_Secret.Data, Write_Key_Length => Client_Handshake_Traffic_Secret'Length, Write_Key => Client_Handshake_Traffic_Secret.Data))
+      - Client_Read_Key := HKDF_Expand_Label (Server_Handshake_Traffic_Secret.Data, "key", Get_Hash (Empty_Hash), Keystore_Message.Key_Length)
+      - Client_Read_IV := HKDF_Expand_Label (Server_Handshake_Traffic_Secret.Data, "iv", Get_Hash (Empty_Hash), Keystore_Message.IV_Length)
+      - Client_Write_Key := HKDF_Expand_Label (Client_Handshake_Traffic_Secret.Data, "key", Get_Hash (Empty_Hash), Keystore_Message.Key_Length)
+      - Client_Write_IV := HKDF_Expand_Label (Client_Handshake_Traffic_Secret.Data, "iv", Get_Hash (Empty_Hash), Keystore_Message.IV_Length)
+      - Success_Client := Write (Record_Control_Channel, GreenTLS.Control_Message (Tag => KEY_UPDATE_CLIENT, Length => Data'Length, Data => Data) where Data = GreenTLS.Record_Keys'(Key_Length => Client_Write_Key'Length, Key => Client_Write_Key.Data, IV_Length => Client_Write_IV'Length, IV => Client_Write_IV.Data)
+      - Success_Server := Write (Record_Control_Channel, GreenTLS.Control_Message (Tag => KEY_UPDATE_SERVER, Length => Data'Length, Data => Data) where Data = GreenTLS.Record_Keys'(Key_Length => Client_Read_Key'Length, Key => Client_Read_Key.Data, IV_Length => Client_Read_IV'Length, IV => Client_Read_IV.Data)
       - Server_Handshake_Traffic_Secret := null
+      - Client_Read_Key := null
+      - Client_Read_IV := null
+      - Client_Write_Key := null
+      - Client_Write_IV := null
       - Derived_Handshake_Secret := Derive_Secret (Handshake_Secret, "derived", Get_Hash (Empty_Hash))
       - Handshake_Secret := null
     transitions:
       - target: ERROR.INTERNAL_ERROR
-        condition: Success = False
+        condition: Success_Client = False or Success_Server = False
       - target: WAIT_EE
 
   - name: WAIT_EE
     actions:
       - Encrypted_Extensions_Handshake_Message := TLS_Handshake.Handshake'Read (Record_Data_Channel)
     transitions:
-      - target: SEND_ALERT_DECODE_ERROR
+      - target: ERROR.DECODE_ERROR
         condition: Encrypted_Extensions_Handshake_Message'Valid = False
-      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+      - target: ERROR.UNEXPECTED_MESSAGE
         condition: Encrypted_Extensions_Handshake_Message.Tag /= TLS_Handshake.HANDSHAKE_ENCRYPTED_EXTENSIONS
       - target: WAIT_EE.PARSE_EXTENSIONS
 
   - name: WAIT_EE.PARSE_EXTENSIONS
     actions:
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for any E in Encrypted_Extensions_Message.Extensions => (E.Tag = TLS_Handshake.EXTENSION_STATUS_REQUEST or E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS or E.Tag = TLS_Handshake.EXTENSION_SIGNED_CERTIFICATE_TIMESTAMP or E.Tag = TLS_Handshake.EXTENSION_PADDING or E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE or E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY or E.Tag = TLS_Handshake.EXTENSION_PSK_KEY_EXCHANGE_MODES or E.Tag = TLS_Handshake.EXTENSION_COOKIE or E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_VERSIONS or E.Tag = TLS_Handshake.EXTENSION_CERTIFICATE_AUTHORITIES or E.Tag = TLS_Handshake.EXTENSION_OID_FILTERS or E.Tag = TLS_Handshake.EXTENSION_POST_HANDSHAKE_AUTH or E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT)
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: Server_Name_Received = False and (for any E in Encrypted_Extensions_Message.Extensions => (E.Tag = TLS_Handshake.EXTENSION_SERVER_NAME)) and Configuration.Server_Name_Enabled = False
         doc: rfc6066.txt+376:46-378:16
       - target: WAIT_EE.PROCESS_SERVER_NAME
@@ -541,7 +560,7 @@ states:
       - Server_Name_Extension := [for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SERVER_NAME]\'Head  # FIXME: never used yet
       - Server_Name_Received := True
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: Server_Name_Extension.Data_Length > 0
         doc: rfc6066.txt+378:19-379:9
       - target: WAIT_EE.PARSE_EXTENSIONS
@@ -551,7 +570,7 @@ states:
       - Max_Fragment_Length := TLS_Handshake.Max_Fragment_Length ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_MAX_FRAGMENT_LENGTH]\'Head.Data).Max_Fragment_Length
       - Max_Fragment_Length_Received := True
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: Configuration.Max_Fragment_Length /= Max_Fragment_Length
         doc: rfc6066.txt+435:50-438:32
       - target: WAIT_EE.PARSE_EXTENSIONS
@@ -587,10 +606,10 @@ states:
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Success = False
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: Protocols'Length /= 1
         doc: rfc7301.txt+181:53-185:30
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: (for all P in Configuration.Protocols => P /= Protocols\'Head)
         doc: rfc7301.txt+175:4-177:54
       - target: WAIT_EE.PARSE_EXTENSIONS
@@ -606,9 +625,9 @@ states:
     actions:
       - Transcript_Hash := Update_Hash (Transcript_Hash, Encrypted_Extensions_Message'Payload)
     transitions:
-      - target: SEND_ALERT_MISSING_EXTENSION
+      - target: ERROR.MISSING_EXTENSION
         condition: Configuration.Server_Name_Enabled = True and Server_Name_Received = False
-      - target: SEND_ALERT_MISSING_EXTENSION
+      - target: ERROR.MISSING_EXTENSION
         condition: Configuration.Max_Fragment_Length_Enabled = True and Max_Fragment_Length_Received = False
       - target: WAIT_EE.NO_EARLY_DATA
         condition: Configuration.Early_Data_Enabled = True and Early_Data_Received = False
@@ -633,15 +652,15 @@ states:
     actions:
       - CCR_Handshake_Message := TLS_Handshake.Handshake'Read (Record_Data_Channel)
     transitions:
-      - target: SEND_ALERT_DECODE_ERROR
+      - target: ERROR.DECODE_ERROR
         condition: CCR_Handshake_Message'Valid = False
-      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+      - target: ERROR.UNEXPECTED_MESSAGE
         condition: CCR_Handshake_Message.Tag /= TLS_Handshake.HANDSHAKE_CERTIFICATE and CCR_Handshake_Message.Tag /= TLS_Handshake.HANDSHAKE_CERTIFICATE_REQUEST
       - target: PARSE_CERT
         condition: Certificate_Message'Valid = True
       - target: PARSE_CR
         condition: Certificate_Request_Message'Valid = True
-      - target: SEND_ALERT_DECODE_ERROR
+      - target: ERROR.DECODE_ERROR
 
   - name: PARSE_CR
     actions:
@@ -676,7 +695,7 @@ states:
       - Signature_Algorithms_Received := True
       - Signature_Algorithms := TLS_Handshake.Signature_Algorithms ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS]\'Head.Data).Algorithms
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for all A in Configuration.Signature_Algorithms => not A in Signature_Algorithms
       - target: PARSE_CR
 
@@ -685,7 +704,7 @@ states:
       - Signature_Algorithms_Cert_Received := True
       - Signature_Algorithms_Cert := TLS_Handshake.Signature_Algorithms_Cert ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT]\'Head.Data).Algorithms
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: for all A in Configuration.Signature_Algorithms_Cert => not A in Signature_Algorithms_Cert
       - target: PARSE_CR
 
@@ -693,31 +712,30 @@ states:
     actions:
       - Transcript_Hash := Update_Hash (Transcript_Hash, CCR_Handshake_Message'Payload)
     transitions:
-      - target: SEND_ALERT_MISSING_EXTENSION
+      - target: ERROR.MISSING_EXTENSION
         condition: Signature_Algorithms_Received = False
       - target: WAIT_CERT
 
-  - name: WAIT_CERT  # TODO: CONTINUE
+  - name: WAIT_CERT
     actions:
       - CCR_Handshake_Message := TLS_Handshake.Handshake'Read (Record_Data_Channel)
     transitions:
-      - target: SEND_ALERT_DECODE_ERROR
-        condition: CCR_Message'Valid = False
+      - target: ERROR.DECODE_ERROR
+        condition: CCR_Handshake_Message'Valid = False or Certificate_Message'Valid = False
       - target: PARSE_CERT
-        condition: CCR_Message.Tag = TLS_Handshake.HANDSHAKE_CERTIFICATE
-      - target: SEND_ALERT_DECODE_ERROR
-        condition: TLS_Handshake.Certificate (CCR_Message.Payload).Certificate_List_Length = 0
+        condition: CCR_Handshake_Message.Tag = TLS_Handshake.HANDSHAKE_CERTIFICATE
+      - target: ERROR.ILLEGAL_PARAMETER
+        condition: Certificate_Message.Certificate_List_Length = 0
         doc: rfc8446.txt+3649:4-3649:58
       - target: PARSE_CERT
 
   - name: PARSE_CERT
     actions:
-      - Server_Certificate_Message := CCR_Message
-      - Transcript_Hash := Update_Hash (Transcript_Hash, Server_Certificate_Message'Payload)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, CCR_Handshake_Message'Payload)
     transitions:
       - target: PARSE_CERT.PARSE_ENTRIES
 
-  - name: PARSE_CERT.PARSE_ENTRIES
+  - name: PARSE_CERT.PARSE_ENTRIES  # TODO: CONTINUE
     actions:
       - Parse CertificateEntry from Server_Certificate_Message
       - Store CertificateEntry in CertificateList
@@ -749,9 +767,9 @@ states:
     transitions:
       - target: WAIT_CV
         condition: certificate valid
-      - target: SEND_ALERT_BAD_CERTIFICATE
+      - target: ERROR.BAD_CERTIFICATE
         condition: invalid certificate
-      - target: SEND_ALERT_BAD_CERTIFICATE
+      - target: ERROR.BAD_CERTIFICATE
         condition: Certificate uses MD5 or is invalid
 
   - name: WAIT_CV
@@ -764,11 +782,11 @@ states:
       - Verify CertificateVerify.Signature using Transcript_Hash and public key of Certificate using CertificateVerify.Algorithm
       - Transcript_Hash := Update_Hash (Transcript_Hash, CertificateVerify_Message'Payload)
     transitions:
-      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+      - target: ERROR.UNEXPECTED_MESSAGE
         condition: other message than CertificateVerify received
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: invalid algorithm
-      - target: SEND_ALERT_DECRYPT_ERROR
+      - target: ERROR.DECRYPT_ERROR
         condition: signature invalid
       - target: WAIT_FINISHED
 
@@ -787,7 +805,7 @@ states:
       - Resumption_Master_Secret := Derive_Secret (Master_Secret, "res master", Get_Hash (Transcript_Hash))
       - Master_Secret := null
     transitions:
-      - target: SEND_ALERT_DECRYPT_ERROR
+      - target: ERROR.DECRYPT_ERROR
         condition: Finished invalid
       - target: SEND_END_OF_EARLY_DATA
         condition: Early_Data_Received = True
@@ -866,11 +884,11 @@ states:
         condition: PostHandshakeMessage.Tag = "NewSessionTicket"
       - target: CONNECTED.POST_HANDSHAKE_AUTH
         condition: PostHandshakeMessage.Tag = "CertificateRequest" and Configuration.Post_Handshake_Auth_Enabled = True
-      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+      - target: ERROR.UNEXPECTED_MESSAGE
         condition: PostHandshakeMessage.Tag = "CertificateRequest" and Configuration.Post_Handshake_Auth_Enabled = False
       - target: CONNECTED.KEY_UPDATE
         condition: PostHandshakeMessage.Tag = "KeyUpdate"
-      - target: SEND_ALERT_UNEXPECTED_MESSAGE
+      - target: ERROR.UNEXPECTED_MESSAGE
         condition: PostHandshakeMessage.Tag /= "NewSessionTicket" and PostHandshakeMessage.Tag /= "CertificateRequest" and PostHandshakeMessage.Tag /= "KeyUpdate"
 
   - name: CONNECTED.NEW_SESSION_TICKET
@@ -934,7 +952,7 @@ states:
       - Pha_Signature_Algorithms_Received := True
       - Pha_Signature_Algorithms := Pha_Extension
     transitions:
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: no supported signature algorithm
       - target: CONNECTED.PHA_PARSE_CR
 
@@ -951,7 +969,7 @@ states:
       - Update Pha_Transcript_Hash with PhaCertificateRequest
       - Check if Signature_Algorithms_Received = True
     transitions:
-      - target: SEND_ALERT_MISSING_EXTENSION
+      - target: ERROR.MISSING_EXTENSION
         condition: Signature_Algorithms_Received = False
       - target: CONNECTED.PHA_CHECK_CERTIFICATE_CONDITIONS
 
@@ -1010,7 +1028,7 @@ states:
     transitions:
       - target: CONNECTED.SEND_KEY_UPDATE
         condition: KeyUpdate.Request_Update == Update_Requested
-      - target: SEND_ALERT_ILLEGAL_PARAMETER
+      - target: ERROR.ILLEGAL_PARAMETER
         condition: KeyUpdate.Request_Update invalid
       - target: CONNECTED
 
@@ -1022,68 +1040,184 @@ states:
     transitions:
       - target: CONNECTED
 
-  - name: SEND_ALERT_ILLEGAL_PARAMETER
+  - name: ERROR.INVALID_CONFIGURATION
     actions:
-      - Send Illegal_Parameter alert
+      - Error := TLS_Alert.ILLEGAL_PARAMETER
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: ERROR.SEND_LOCAL
 
-  - name: SEND_ALERT_DECODE_ERROR
+  - name: ERROR.CLOSE_NOTIFY
     actions:
-      - Send Decode_Error alert
+      - Error := TLS_Alert.CLOSE_NOTIFY
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: ERROR.SEND_REMOTE
 
-  - name: SEND_ALERT_BAD_CERTIFICATE
+  - name: ERROR.UNEXPECTED_MESSAGE
     actions:
-      - Send Bad_Certificate alert
+      - Error := TLS_Alert.UNEXPECTED_MESSAGE
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: ERROR.SEND_REMOTE
 
-  - name: SEND_ALERT_UNEXPECTED_MESSAGE
+  - name: ERROR.BAD_RECORD_MAC
     actions:
-      - Send Unexpected_Message alert
+      - Error := TLS_Alert.BAD_RECORD_MAC
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: ERROR.SEND_REMOTE
 
-  - name: SEND_ALERT_DECRYPT_ERROR
+  - name: ERROR.RECORD_OVERFLOW
     actions:
-      - Send Decrypt_Error alert
+      - Error := TLS_Alert.RECORD_OVERFLOW
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: ERROR.SEND_REMOTE
 
-  - name: SEND_ALERT_PROTOCOL_VERSION
+  - name: ERROR.HANDSHAKE_FAILURE
     actions:
-      - Send Protocol_Version alert
+      - Error := TLS_Alert.HANDSHAKE_FAILURE
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: ERROR.SEND_REMOTE
 
-  - name: SEND_ALERT_MISSING_EXTENSION
+  - name: ERROR.BAD_CERTIFICATE
     actions:
-      - Send Missing_Extension alert
+      - Error := TLS_Alert.BAD_CERTIFICATE
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.UNSUPPORTED_CERTIFICATE
+    actions:
+      - Error := TLS_Alert.UNSUPPORTED_CERTIFICATE
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.CERTIFICATE_REVOKED
+    actions:
+      - Error := TLS_Alert.CERTIFICATE_REVOKED
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.CERTIFICATE_EXPIRED
+    actions:
+      - Error := TLS_Alert.CERTIFICATE_EXPIRED
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.CERTIFICATE_UNKNOWN
+    actions:
+      - Error := TLS_Alert.CERTIFICATE_UNKNOWN
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.ILLEGAL_PARAMETER
+    actions:
+      - Error := TLS_Alert.ILLEGAL_PARAMETER
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.UNKNOWN_CA
+    actions:
+      - Error := TLS_Alert.UNKNOWN_CA
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.ACCESS_DENIED
+    actions:
+      - Error := TLS_Alert.ACCESS_DENIED
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.DECODE_ERROR
+    actions:
+      - Error := TLS_Alert.DECODE_ERROR
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.DECRYPT_ERROR
+    actions:
+      - Error := TLS_Alert.DECRYPT_ERROR
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.PROTOCOL_VERSION
+    actions:
+      - Error := TLS_Alert.PROTOCOL_VERSION
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.INSUFFICIENT_SECURITY
+    actions:
+      - Error := TLS_Alert.INSUFFICIENT_SECURITY
+    transitions:
+      - target: ERROR.SEND_REMOTE
 
   - name: ERROR.INTERNAL_ERROR
-    transitions:
-      - target: SEND_ALERT_INTERNAL_ERROR
-
-  - name: SEND_ALERT_INTERNAL_ERROR
     actions:
-      - Send Internal_Error alert
+      - Error := TLS_Alert.INTERNAL_ERROR
     transitions:
-      - target: CONNECTION_TERMINATED
+      - target: ERROR.SEND_REMOTE
 
-  - name: CONNECTION_TERMINATED
+  - name: ERROR.INAPPROPRIATE_FALLBACK
     actions:
-      - Inform client application
+      - Error := TLS_Alert.INAPPROPRIATE_FALLBACK
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.USER_CANCELED
+    actions:
+      - Error := TLS_Alert.USER_CANCELED
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.MISSING_EXTENSION
+    actions:
+      - Error := TLS_Alert.MISSING_EXTENSION
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.UNSUPPORTED_EXTENSION
+    actions:
+      - Error := TLS_Alert.UNSUPPORTED_EXTENSION
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.UNRECOGNIZED_NAME
+    actions:
+      - Error := TLS_Alert.UNRECOGNIZED_NAME
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.BAD_CERTIFICATE_STATUS_RESPONSE
+    actions:
+      - Error := TLS_Alert.BAD_CERTIFICATE_STATUS_RESPONSE
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.UNKNOWN_PSK_IDENTITY
+    actions:
+      - Error := TLS_Alert.UNKNOWN_PSK_IDENTITY
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.CERTIFICATE_REQUIRED
+    actions:
+      - Error := TLS_Alert.CERTIFICATE_REQUIRED
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.NO_APPLICATION_PROTOCOL
+    actions:
+      - Error := TLS_Alert.NO_APPLICATION_PROTOCOL
+    transitions:
+      - target: ERROR.SEND_REMOTE
+
+  - name: ERROR.SEND_REMOTE
+    actions:
+      - Success := Write (Record_Control_Channel, GreenTLS.Control_Message'(Tag => ALERT, Length => Alert_Message'Length, Data => Alert_Message) where Alert_Message = GreenTLS.Alert_Message'(Description => Error))
+    transitions:
+      - target: ERROR.SEND_LOCAL
+
+  - name: ERROR.SEND_LOCAL
+    actions:
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Data'Length, Data => Data) where Data = GreenTLS.Alert_Message'(Description => Error))
     transitions:
       - target: FINAL
-
-  - name: INVALID_CONFIGURATION
-    actions:
-      - Inform client application
-    transitions:
-      - target: SEND_ALERT_INTERNAL_ERROR
 
   - name: FINAL
