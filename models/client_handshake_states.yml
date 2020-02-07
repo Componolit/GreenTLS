@@ -40,6 +40,7 @@ variables:
   - "Certificate_Authorities : TLS_Handshake.Distinguished_Names := Initialize (4096 * 8)"
   - "Certificate_Authorities_Received : Boolean := False"
   - "Certificate_Request_Received : Boolean := False"
+  - "Certificate_Verify_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
   - "Client_Handshake_Traffic_Secret : GreenTLS.Content := Initialize (512)"
   - "Client_Hello_1_Hash : Hash_Context"
   - "Client_Hello_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
@@ -78,24 +79,27 @@ variables:
   - "Supported_Groups_Received : Boolean := False"
   - "Transcript_Hash : Hash_Context"
 renames:
-  - "Certificate_Message : TLS_Handshake.Certificate renames CCR_Handshake_Message.Payload"
-  - "Certificate_Request_Message : TLS_Handshake.Certificate_Request renames CCR_Handshake_Message.Payload"
-  - "Client_Hello_Message : TLS_Handshake.Client_Hello renames Client_Hello_Handshake_Message.Payload"
-  - "Encrypted_Extensions_Message : TLS_Handshake.Encrypted_Extensions renames Encrypted_Extensions_Handshake_Message.Payload"
-  - "Server_Hello_Message : TLS_Handshake.Server_Hello renames Server_Hello_Handshake_Message.Payload"
-functions:
   - "Calculate_Binders (PSKs : GreenTLS.PSKs; Transcript_Hash : GreenTLS.Content) return TLS_Handshake.PSK_Binder_Entries"
   - "Calculate_Binders_Length (PSKs : GreenTLS.PSKs) return RFLX.Types.Bit_Length"
   - "Calculate_ECDHE_Key (Client_Share : TLS_Handshake.Key_Share_Entry; Server_Share : TLS_Handshake.Key_Share_Entry) return GreenTLS.Content"
+  - "Certificate_Message : TLS_Handshake.Certificate renames CCR_Handshake_Message.Payload"
+  - "Certificate_Request_Message : TLS_Handshake.Certificate_Request renames CCR_Handshake_Message.Payload"
+  - "Certificate_Verify_Message : TLS_Handshake.Certificate_Verify renames Certificate_Verify_Handshake_Message.Payload"
+  - "Client_Hello_Message : TLS_Handshake.Client_Hello renames Client_Hello_Handshake_Message.Payload"
   - "Derive_Secret (Secret : GreenTLS.Content; Label : String; Transcript_Hash : GreenTLS.Content) return GreenTLS.Content"
   - "Empty_Hash return Hash_Context"
+  - "Encrypted_Extensions_Message : TLS_Handshake.Encrypted_Extensions renames Encrypted_Extensions_Handshake_Message.Payload"
   - "Get_Hash (Context : Hash_Context) return GreenTLS.Content"
   - "HKDF_Expand_Label (Secret : GreenTLS.Content; Label : String; Context : GreenTLS.Content; Length : GreenTLS.KM_Length) return GreenTLS.Content"
   - "HKDF_Extract (Salt : GreenTLS.Content; IKM : GreenTLS.Content) return GreenTLS.Content"
   - "Hash_Length (Cipher_Suite : TLS_Handshake.Cipher_Suite) return GreenTLS.KM_Length"
   - "Select_Supported_Groups (Server_Preferred_Groups : TLS_Handshake.Named_Groups; Supported_Groups : TLS_Handshake.Named_Groups) return TLS_Handshake.Named_Groups"
+  - "Server_Hello_Message : TLS_Handshake.Server_Hello renames Server_Hello_Handshake_Message.Payload"
   - "Truncate_Client_Hello (Client_Hello : TLS_Handshake.Handshake) return GreenTLS.Content"
   - "Update_Hash (Context : Hash_Context; Data : Payload) return Hash_Context"
+  - "Validate_Server_Certificate (Certificate_Message : TLS_Handshake.Certificate; Configuration : GreenTLS.Configuration) return GreenTLS.Certificate_Validation_Result"
+  - "Validate_Certificate_Verify_Signature (Certificate_Message : TLS_Handshake.Certificate; Certificate_Verify_Message : TLS_Handshake.Certificate_Verify; Transcript_Hash : GreenTLS.Content) return GreenTLS.Signature_Validation_Result"
+functions:
 states:
   - name: START
     actions:
@@ -722,78 +726,67 @@ states:
     transitions:
       - target: ERROR.DECODE_ERROR
         condition: CCR_Handshake_Message'Valid = False or Certificate_Message'Valid = False
-      - target: PARSE_CERT
-        condition: CCR_Handshake_Message.Tag = TLS_Handshake.HANDSHAKE_CERTIFICATE
+      - target: ERROR.UNEXPECTED_MESSAGE
+        condition: CCR_Handshake_Message.Tag /= TLS_Handshake.HANDSHAKE_CERTIFICATE
+      - target: ERROR.ILLEGAL_PARAMETER
+        condition: Certificate_Message.Certificate_Request_Context_Length /= 0
+        doc: rfc8446.txt+3593:22-3594:38
       - target: ERROR.ILLEGAL_PARAMETER
         condition: Certificate_Message.Certificate_List_Length = 0
         doc: rfc8446.txt+3649:4-3649:58
       - target: PARSE_CERT
 
   - name: PARSE_CERT
+    variables:
+      - "Validation_Result : GreenTLS.Certificate_Validation_Result"
     actions:
       - Transcript_Hash := Update_Hash (Transcript_Hash, CCR_Handshake_Message'Payload)
-    transitions:
-      - target: PARSE_CERT.PARSE_ENTRIES
-
-  - name: PARSE_CERT.PARSE_ENTRIES  # TODO: CONTINUE
-    actions:
-      - Parse CertificateEntry from Server_Certificate_Message
-      - Store CertificateEntry in CertificateList
-      - Check next entry
-    transitions:
-      - target: PARSE_CERT.VERIFY_CERTIFICATE
-        condition: no further entries
-      - target: PARSE_CERT.PARSE_EXTENSIONS
-
-  - name: PARSE_CERT.PARSE_EXTENSIONS
-    actions:
-      - Parse CertificateEntry.Extensions
-      - Check next extensions, skip if unknown  # FIXME: Signed_Certificate_Timestamp not supported
-    transitions:
-      - target: PARSE_CERT.PARSE_STATUS_REQUEST
-        condition: Status_Request extension found and was requested by Configuration.Status_Request
-      - target: PARSE_CERT.PARSE_ENTRIES
-        condition: no further extensions
-
-  - name: PARSE_CERT.PARSE_STATUS_REQUEST
-    actions:
-      - Read and verify CertificateStatus from CertificateEntry.Extensions
-    transitions:
-      - target: PARSE_CERT.PARSE_EXTENSIONS
-
-  - name: PARSE_CERT.VERIFY_CERTIFICATE
-    actions:
-      - Verify certificates and their status in CertificateList
+      - Validation_Result := Validate_Server_Certificate (Certificate_Message, Configuration)
     transitions:
       - target: WAIT_CV
-        condition: certificate valid
+        condition: Certificate_Result = GreenTLS.VALID_CERTIFICATE
       - target: ERROR.BAD_CERTIFICATE
-        condition: invalid certificate
-      - target: ERROR.BAD_CERTIFICATE
-        condition: Certificate uses MD5 or is invalid
+        condition: Certificate_Result = GreenTLS.BAD_CERTIFICATE
+      - target: ERROR.UNSUPPORTED_CERTIFICATE
+        condition: Certificate_Result = GreenTLS.UNSUPPORTED_CERTIFICATE
+      - target: ERROR.CERTIFICATE_REVOKED
+        condition: Certificate_Result = GreenTLS.CERTIFICATE_REVOKED
+      - target: ERROR.CERTIFICATE_EXPIRED
+        condition: Certificate_Result = GreenTLS.CERTIFICATE_EXPIRED
+      - target: ERROR.CERTIFICATE_UNKNOWN
+        condition: Certificate_Result = GreenTLS.CERTIFICATE_UNKNOWN
+      - target: ERROR.INTERNAL_ERROR
 
   - name: WAIT_CV
     actions:
-      - Read CertificateVerify from Record_Data_Channel
-      - Ensure CertificateVerify.Algorithm is one of Configuration.Signature_Algorithms
-      - Ensure CertificateVerify.Algorithm is compatible to signature algorithm in Certificate
-      - Ensure RSA signatures use an RSASSA-PSS algorithm
-      - Ensure SHA-1 is not used
-      - Verify CertificateVerify.Signature using Transcript_Hash and public key of Certificate using CertificateVerify.Algorithm
-      - Transcript_Hash := Update_Hash (Transcript_Hash, CertificateVerify_Message'Payload)
+      - Certificate_Verify_Handshake_Message := Read (Record_Data_Channel)
+      - Transcript_Hash := Update_Hash (Transcript_Hash, Certificate_Verify_Message'Payload)
     transitions:
-      - target: ERROR.UNEXPECTED_MESSAGE
-        condition: other message than CertificateVerify received
+      - target: ERROR.DECODE_ERROR
+        condition: Certificate_Verify_Handshake_Message'Valid = False or Certificate_Verify_Message'Valid = False
       - target: ERROR.ILLEGAL_PARAMETER
-        condition: invalid algorithm
+        condition: Certificate_Verify_Message.Algorithm not in Configuration.Signature_Algorithms
+        doc: rfc8446.txt+3902:4-3904:12
+      - target: WAIT_CV.VALIDATE
+
+  - name: WAIT_CV.VALIDATE
+    variables:
+      - "Validation_Result : GreenTLS.Signature_Validation_Result"
+    actions:
+      - Validation_Result := Validate_Certificate_Verify_Signature (Certificate_Message, Certificate_Verify_Message, Get_Hash (Transcript_Hash))
+    transitions:
+      - target: ERROR.ILLEGAL_PARAMETER
+        condition: Validation_Result = GreenTLS.ILLEGAL_PARAMETER
       - target: ERROR.DECRYPT_ERROR
-        condition: signature invalid
+        condition: Validation_Result = GreenTLS.DECRYPT_ERROR
       - target: WAIT_FINISHED
+        condition: Validation_Result = GreenTLS.VALID_SIGNATURE
+      - target: ERROR.INTERNAL_ERROR
 
   - name: WAIT_FINISHED
     actions:
       - Hash_Length := Hash_Length (Server_Hello_Message.Cipher_Suite)
-      - Read Finished from Record_Data_Channel
+      - Finished := Read (Record_Data_Channel)
       - Finished_Key := HKDF_Expand_Label (Client_Handshake_Traffic_Secret, "finished", Get_Hash (Empty_Hash), Hash_Length)
       - Verify_Data := HMAC (Finished_Key, Get_Hash (Transcript_Hash))
       - Check Finished.Verify_Data = Verify_Data
@@ -814,8 +807,10 @@ states:
 
   - name: SEND_END_OF_EARLY_DATA
     actions:
-      - Send EndOfEarlyData to Record_Data_Channel
+      - Success := Write (Record_Data_Channel, EndOfEarlyData)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: CHECK_CERTIFICATE_CONDITIONS
 
   - name: CHECK_CERTIFICATE_CONDITIONS
@@ -838,47 +833,54 @@ states:
     actions:
       - Do OCSP request based on selected certificate and Status_Request if Status_Request_Received
       - Create Certificate using Configuration
-      - Send Certificate to Record_Data_Channel
+      - Success := Write (Record_Data_Channel, Certificate)
       - Transcript_Hash := Update_Hash (Transcript_Hash, Certificate_Message'Payload)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: SEND_CERTIFICATE_VERIFY
 
   - name: SEND_EMPTY_CERTIFICATE
     actions:
       - Create empty Certificate
-      - Send Certificate to Record_Data_Channel
+      - Success := Write (Record_Data_Channel, Certificate)
       - Transcript_Hash := Update_Hash (Transcript_Hash, Certificate_Message'Payload)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: SEND_FINISHED
 
   - name: SEND_CERTIFICATE_VERIFY
     actions:
       - Select one algorithm of Signature_Algorithms
       - Create CertificateVerify with Transcript_Hash using selected algorithm
-      - Send CertificateVerify to Record_Data_Channel
+      - Success := Write (Record_Data_Channel, CertificateVerify)
       - Transcript_Hash := Update_Hash (Transcript_Hash, CertificateVerify_Message'Payload)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: SEND_FINISHED
 
   - name: SEND_FINISHED
     actions:
-      - Record_Data_Channel := send(Client_Handshake_Traffic_Secret, "Server_Write_Key")
-      - Send Client_Handshake_Traffic_Secret to Record_Data_Channel as Server_Write_Key
+      - Success := Write (Record_Data_Channel, Client_Handshake_Traffic_Secret) Server_Write_Key
       - Client_Handshake_Traffic_Secret := null
       - Verify_Data := HMAC (Finished_Key, Get_Hash (Transcript_Hash))
       - Finished_Key := null
       - Create Finished with Verify_Data
-      - Send Finished to Record_Data_Channel
-      - Send Client_Application_Traffic_Secret to Record_Data_Channel as Client_Write_Key
-      - Send Server_Application_Traffic_Secret to Record_Data_Channel as Server_Write_Key
+      - Success := Write (Record_Data_Channel, Finished)
+      - Success := Write (Record_Data_Channel, Client_Application_Traffic_Secret) Client_Write_Key
+      - Success := Write (Record_Data_Channel, Server_Application_Traffic_Secret) Server_Write_Key
       - Server_Application_Traffic_Secret := null
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: CONNECTED
 
 # FIXME: send KeyUpdate (periodically) based on Configuration
   - name: CONNECTED
     actions:
-      - PostHandshakeMessage := read(Record_Data_Channel)
+      - PostHandshakeMessage := Read (Record_Data_Channel)
     transitions:
       - target: CONNECTED.NEW_SESSION_TICKET
         condition: PostHandshakeMessage.Tag = "NewSessionTicket"
@@ -990,23 +992,29 @@ states:
     actions:
       - Do OCSP request based on selected certificate and Pha_Status_Request if Pha_Status_Request_Received
       - Create PhaCertificate using Configuration
-      - Send PhaCertificate to Record_Data_Channel
+      - Success := Write (Record_Data_Channel, PhaCertificate)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: CONNECTED.PHA_SEND_CERTIFICATE_VERIFY
 
   - name: CONNECTED.PHA_SEND_EMPTY_CERTIFICATE
     actions:
       - Create empty PhaCertificate
-      - Send PhaCertificate to Record_Data_Channel
+      - Success := Write (Record_Data_Channel, PhaCertificate)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: CONNECTED.PHA_SEND_FINISHED
 
   - name: CONNECTED.PHA_SEND_CERTIFICATE_VERIFY
     actions:
       - Select one algorithm of Pha_Signature_Algorithms
       - Create PhaCertificateVerify with Pha_Transcript_Hash using selected algorithm
-      - Send PhaCertificateVerify to Record_Data_Channel
+      - Success := Write (Record_Data_Channel, PhaCertificateVerify)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: CONNECTED.PHA_SEND_FINISHED
 
   - name: CONNECTED.PHA_SEND_FINISHED
@@ -1015,15 +1023,17 @@ states:
       - Verify_Data := HMAC (Finished_Key, Get_Hash (Pha_Transcript_Hash))
       - Finished_Key := null
       - Create Finished with Verify_Data
-      - Send Finished to Record_Data_Channel
+      - Success := Write (Record_Data_Channel, Finished)
     transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Success = False
       - target: CONNECTED
 
   - name: CONNECTED.KEY_UPDATE
     actions:
       - KeyUpdate := PostHandshakeMessage
       - Server_Application_Traffic_Secret = HKDF_Expand_Label (Server_Application_Traffic_Secret, "traffic upd", Get_Hash (Empty_Hash), Hash_Length)
-      - Send Server_Application_Traffic_Secret to Record_Data_Channel as Server_Write_Key
+      - Success := Write (Record_Data_Channel, Server_Application_Traffic_Secret) Server_Write_Key
       - Check KeyUpdate.Request_Update
     transitions:
       - target: CONNECTED.SEND_KEY_UPDATE
@@ -1036,7 +1046,7 @@ states:
     actions:
       - Client_Application_Traffic_Secret = HKDF_Expand_Label (Client_Application_Traffic_Secret, "traffic upd", Get_Hash (Empty_Hash), Hash_Length)
       - Create and send KeyUpdate with Request_Update := Update_Not_Requested to Record_Data_Channel
-      - Send Client_Application_Traffic_Secret to Record_Data_Channel as Client_Write_Key
+      - Success := Write (Record_Data_Channel, Client_Application_Traffic_Secret) Client_Write_Key
     transitions:
       - target: CONNECTED
 

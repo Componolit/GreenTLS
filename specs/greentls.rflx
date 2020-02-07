@@ -210,4 +210,19 @@ package GreenTLS is
    for Keystore_Message use (Payload => PSK_Message)
       if Tag = KEYSTORE_RESPONSE and Request = KEYSTORE_REQUEST_PSKS;
 
+   type Certificate_Validation_Result is (
+      VALID_CERTIFICATE,
+      BAD_CERTIFICATE,
+      UNSUPPORTED_CERTIFICATE,
+      CERTIFICATE_REVOKED,
+      CERTIFICATE_EXPIRED,
+      CERTIFICATE_UNKNOWN
+   ) with Size => 8;
+
+   type Signature_Validation_Result is (
+      VALID_SIGNATURE,
+      ILLEGAL_PARAMETER,
+      DECRYPT_ERROR,
+   ) with Size => 8;
+
 end GreenTLS;
