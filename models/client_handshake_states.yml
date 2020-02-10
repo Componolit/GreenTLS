@@ -323,7 +323,7 @@ states:
       - target: WAIT_SH.PARSE_HRR
         condition: Server_Hello_Message.HRR_Extensions'Present and Retry_Request_Received = False
       - target: ERROR.UNEXPECTED_MESSAGE
-        condition: not Server_Hello_Message.HRR_Extensions'Present and Retry_Request_Received = True
+        condition: Server_Hello_Message.HRR_Extensions'Present = False and Retry_Request_Received = True
       - target: WAIT_SH.EXTENSIONS_PSK
         condition: for some E in Server_Hello_Message.Extensions => E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY
         doc: rfc8446.txt+643:57-646:21
@@ -372,7 +372,7 @@ states:
       - DHE_Accepted := True
     transitions:
       - target: ERROR.ILLEGAL_PARAMETER
-        condition: not (for some S in TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Shares => S.Group = Selected_Group)
+        condition: (for some S in TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Shares => S.Group = Selected_Group) = False
         doc: rfc8446.txt+2766:39-2768:55
       - target: SET_RECORD_KEYS
 
