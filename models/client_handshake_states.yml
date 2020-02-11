@@ -334,7 +334,7 @@ states:
 
   - name: WAIT_SH.EXTENSIONS_PSK
     actions:
-      - Identity_Index := TLS_Handshake.Pre_Shared_Key_SH ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY]\'Head.Data).Selected_Identity
+      - Identity_Index := TLS_Handshake.Pre_Shared_Key_SH ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY]'Head.Data).Selected_Identity
     transitions:
       - target: ERROR.ILLEGAL_PARAMETER
         condition: Identity_Index /= 0 and (for some E in Server_Hello_Message.Extensions => E.Tag = EXTENSION_EARLY_DATA)
@@ -345,7 +345,7 @@ states:
 
   - name: WAIT_SH.EXTENSIONS_PSK_REQUEST
     actions:
-      - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message (Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_PSK, Length => Selected_Identity'Length, Payload => Selected_Identity) where Selected_Identity = TLS_Handshake.Pre_Shared_Key_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY]\'Head.Data).Identities (Identity_Index))
+      - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message (Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_PSK, Length => Selected_Identity'Length, Payload => Selected_Identity) where Selected_Identity = TLS_Handshake.Pre_Shared_Key_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_PRE_SHARED_KEY]'Head.Data).Identities (Identity_Index))
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Keystore_Message'Valid = False or Keystore_Message.Tag /= KEYSTORE_RESPONSE or Keystore_Message.Request /= KEYSTORE_REQUEST_PSK or GreenTLS.PSK (Keystore_Message.Payload)'Valid = False
@@ -368,11 +368,11 @@ states:
 
   - name: WAIT_SH.EXTENSIONS_DHE
     actions:
-      - Selected_Group := TLS_Handshake.Key_Share_SH ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Group
+      - Selected_Group := TLS_Handshake.Key_Share_SH ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]'Head.Data).Group
       - DHE_Accepted := True
     transitions:
       - target: ERROR.ILLEGAL_PARAMETER
-        condition: (for some S in TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Shares => S.Group = Selected_Group) = False
+        condition: (for some S in TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]'Head.Data).Shares => S.Group = Selected_Group) = False
         doc: rfc8446.txt+2766:39-2768:55
       - target: SET_RECORD_KEYS
 
@@ -381,8 +381,8 @@ states:
       - "Client_Supported_Groups : TLS_Handshake.Named_Groups := Initialize (160)"
     actions:
       - Retry_Request_Received := True
-      - Client_Supported_Groups := TLS_Handshake.Supported_Groups ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_GROUPS]\'Head.Data).Groups
-      - Client_Shares := TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Shares
+      - Client_Supported_Groups := TLS_Handshake.Supported_Groups ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_GROUPS]'Head.Data).Groups
+      - Client_Shares := TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]'Head.Data).Shares
     transitions:
       - target: ERROR.ILLEGAL_PARAMETER
         condition: for some E in Server_Hello_Message.Extensions => E not in Client_Hello_Message.Extensions and E.Tag /= TLS_Handshake.EXTENSION_COOKIE
@@ -424,7 +424,7 @@ states:
 
   - name: WAIT_SH.PREPARE_CH_COOKIE
     actions:
-      - Extensions_List'Append ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_COOKIE]\'Head)
+      - Extensions_List'Append ([for E in Server_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_COOKIE]'Head)
       - CH_Cookie_Prepared := True
     doc: rfc8446.txt+2223:19-2225:47
     transitions:
@@ -513,7 +513,7 @@ states:
     actions:
       - Derived_Early_Secret := Derive_Secret (Early_Secret, "derived", Get_Hash (Empty_Hash))
       - Early_Secret := null
-      - Handshake_Secret := HKDF_Extract (Derived_Early_Secret, Key) where Key = Calculate_ECDHE_Key (Client_Share, TLS_Handshake.Key_Share_Entry ([for E in Server_Hello_Message.Extensions => E when E.Tag = EXTENSION_KEY_SHARE]\'Head).Data) where Client_Share = [for S in TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]\'Head.Data).Shares => S when S.Group = Selected_Group]\'Head
+      - Handshake_Secret := HKDF_Extract (Derived_Early_Secret, Key) where Key = Calculate_ECDHE_Key (Client_Share, TLS_Handshake.Key_Share_Entry ([for E in Server_Hello_Message.Extensions => E when E.Tag = EXTENSION_KEY_SHARE]'Head).Data) where Client_Share = [for S in TLS_Handshake.Key_Share_CH ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_KEY_SHARE]'Head.Data).Shares => S when S.Group = Selected_Group]'Head
       - Derived_Early_Secret := null
       - Client_Handshake_Traffic_Secret := Derive_Secret (Handshake_Secret, "c hs traffic", Get_Hash (Transcript_Hash))
       - Server_Handshake_Traffic_Secret := Derive_Secret (Handshake_Secret, "s hs traffic", Get_Hash (Transcript_Hash))
@@ -569,7 +569,7 @@ states:
 
   - name: WAIT_EE.PROCESS_SERVER_NAME
     actions:
-      - Server_Name_Extension := [for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SERVER_NAME]\'Head  # FIXME: never used yet
+      - Server_Name_Extension := [for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SERVER_NAME]'Head  # FIXME: never used yet
       - Server_Name_Received := True
     transitions:
       - target: ERROR.ILLEGAL_PARAMETER
@@ -579,7 +579,7 @@ states:
 
   - name: WAIT_EE.PROCESS_MAX_FRAGMENT_LENGTH
     actions:
-      - Max_Fragment_Length := TLS_Handshake.Max_Fragment_Length ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_MAX_FRAGMENT_LENGTH]\'Head.Data).Max_Fragment_Length
+      - Max_Fragment_Length := TLS_Handshake.Max_Fragment_Length ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_MAX_FRAGMENT_LENGTH]'Head.Data).Max_Fragment_Length
       - Max_Fragment_Length_Received := True
     transitions:
       - target: ERROR.ILLEGAL_PARAMETER
@@ -589,7 +589,7 @@ states:
 
   - name: WAIT_EE.PROCESS_SUPPORTED_GROUPS
     actions:
-      - Server_Preferred_Groups := TLS_Handshake.Supported_Groups ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_GROUPS]\'Head.Data).Groups  # FIXME: store after successful handshake
+      - Server_Preferred_Groups := TLS_Handshake.Supported_Groups ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_GROUPS]'Head.Data).Groups  # FIXME: store after successful handshake
       - Supported_Groups_Received := True
     doc: rfc8446.txt+2651:4-2661:68
     transitions:
@@ -599,7 +599,7 @@ states:
     variables:
       - "Server_Heartbeat_Mode : TLS_Handshake.Heartbeat_Mode"
     actions:
-      - Server_Heartbeat_Mode := TLS_Handshake.Heartbeat ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_HEARTBEAT]\'Head.Data).Mode
+      - Server_Heartbeat_Mode := TLS_Handshake.Heartbeat ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_HEARTBEAT]'Head.Data).Mode
       - Success := Write (Record_Control_Channel, GreenTLS.Control_Message'(Tag => GreenTLS.HEARTBEAT_MODE, Length => Data'Length, Payload => Data) where Data = GreenTLS.Heartbeat_Control_Message'(Local => Configuration.Heartbeat_Mode, Remote => Server_Heartbeat_Mode))
       - Heartbeat_Received := True
     doc: rfc6520.txt+138:4-149:61
@@ -612,7 +612,7 @@ states:
     variables:
       - "Protocols : TLS_Handshake.Protocol_Names := Initialize (4096 * 8)"
     actions:
-      - Protocols := TLS_Handshake.Protocol_Name_List ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_APPLICATION_LAYER_PROTOCOL_NEGOTIATION]\'Head.Data).Protocol_Name_List
+      - Protocols := TLS_Handshake.Protocol_Name_List ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_APPLICATION_LAYER_PROTOCOL_NEGOTIATION]'Head.Data).Protocol_Name_List
       - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(GreenTLS.APPLICATION_PROTOCOL, Protocols'Head))
       - Application_Layer_Protocol_Negotiation_Received := True
     transitions:
@@ -622,7 +622,7 @@ states:
         condition: Protocols'Length /= 1
         doc: rfc7301.txt+181:53-185:30
       - target: ERROR.ILLEGAL_PARAMETER
-        condition: (for all P in Configuration.Protocols => P /= Protocols\'Head)
+        condition: (for all P in Configuration.Protocols => P /= Protocols'Head)
         doc: rfc7301.txt+175:4-177:54
       - target: WAIT_EE.PARSE_EXTENSIONS
 
@@ -701,21 +701,21 @@ states:
   - name: PARSE_CR.PARSE_CERTIFICATE_AUTHORITIES
     actions:
       - Certificate_Authorities_Received := True
-      - Certificate_Authorities := TLS_Handshake.Certificate_Authorities ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_CERTIFICATE_AUTHORITIES]\'Head.Data)
+      - Certificate_Authorities := TLS_Handshake.Certificate_Authorities ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_CERTIFICATE_AUTHORITIES]'Head.Data)
     transitions:
       - target: PARSE_CR.EXTENSIONS
 
   - name: PARSE_CR.PARSE_OID_FILTERS
     actions:
       - OID_Filters_Received := True
-      - OID_Filters := TLS_Handshake.OID_Filters ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_OID_FILTERS]\'Head.Data)
+      - OID_Filters := TLS_Handshake.OID_Filters ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_OID_FILTERS]'Head.Data)
     transitions:
       - target: PARSE_CR.EXTENSIONS
 
   - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS
     actions:
       - Signature_Algorithms_Received := True
-      - Signature_Algorithms := TLS_Handshake.Signature_Algorithms ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS]\'Head.Data)
+      - Signature_Algorithms := TLS_Handshake.Signature_Algorithms ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS]'Head.Data)
     transitions:
       - target: ERROR.ILLEGAL_PARAMETER
         condition: for all A in Configuration.Signature_Algorithms => A not in Signature_Algorithms
@@ -724,7 +724,7 @@ states:
   - name: PARSE_CR.PARSE_SIGNATURE_ALGORITHMS_CERT
     actions:
       - Signature_Algorithms_Cert_Received := True
-      - Signature_Algorithms_Cert := TLS_Handshake.Signature_Algorithms_Cert ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT]\'Head.Data)
+      - Signature_Algorithms_Cert := TLS_Handshake.Signature_Algorithms_Cert ([for E in Certificate_Request_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT]'Head.Data)
     transitions:
       - target: ERROR.ILLEGAL_PARAMETER
         condition: for all A in Configuration.Signature_Algorithms_Cert => A not in Signature_Algorithms_Cert
