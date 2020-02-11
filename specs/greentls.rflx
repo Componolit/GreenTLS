@@ -10,7 +10,7 @@ package GreenTLS is
          null
             then Data
                with Length => Message'Length;
-         Data : Payload;
+         Data : Opaque;
       end message;
 
    type Control_Message_Type is (KEY_UPDATE_CLIENT, KEY_UPDATE_SERVER, HEARTBEAT_MODE, ALERT) with Size => 8;
@@ -22,7 +22,7 @@ package GreenTLS is
          Length : Control_Message_Length
             then Payload
                with Length => Length;
-         Data : Payload;
+         Data : Opaque;
       end message;
 
    type Key_Length is range 8 .. 64 with Size => 8;
@@ -32,11 +32,11 @@ package GreenTLS is
          Key_Length : Key_Length
             then Key
                with Length => Key_Length * 8;
-         Key : Payload;
+         Key : Opaque;
          IV_Length : Key_Length
             then IV
                with Length => IV_Length;
-         IV : Payload;
+         IV : Opaque;
       end message;
 
    for Control_Message use (Data => Key_Update_Message)
@@ -69,7 +69,7 @@ package GreenTLS is
       message
          Tag : Application_Control_Message_Type;
          Length : Length;
-         Data : Payload;
+         Data : Opaque;
       end message;
 
    type Application_Shutdown_Message is null message;
@@ -100,45 +100,26 @@ package GreenTLS is
          Length : Heartbeat_Data_Length
             then Data
                with Length => Length;
-         Data : Payload;
+         Data : Opaque;
       end message;
 
    type Configuration is
       message
-         PSK_Key_Exchange_Modes_Length : TLS_Handshake.PSK_Key_Exchange_Modes_Length
-            then PSK_Key_Exchange_Modes
-               with Length => PSK_Key_Exchange_Modes_Length;
-         PSK_Key_Exchange_Modes : TLS_Handshake.Key_Exchange_Modes;  -- FIXME: must only contain PSK_KE and/or PSK_DHE_KE
+         PSK_Key_Exchange_Modes : TLS_Handshake.PSK_Key_Exchange_Modes;  -- FIXME: must only contain PSK_KE and/or PSK_DHE_KE
          Cipher_Suites_Length : TLS_Handshake.Cipher_Suites_Length
             then Cipher_Suites
                with Length => Cipher_Suites_Length * 8;
          Cipher_Suites : TLS_Handshake.Cipher_Suites;
-         -- FIXME: use SupportedGroups message as field type?
-         Supported_Groups_Length : Supported_Groups_Length
-            then Groups
-               with Length => Supported_Groups_Length;
-         Supported_Groups : Named_Groups;
-         Signature_Algorithms_Length : TLS_Handshake.Signature_Algorithms_Length
-            then Signature_Algorithms
-               with Length => Signature_Algorithms_Length;
-         Signature_Algorithms : TLS_Handshake.Signature_Schemes;
+         Supported_Groups : TLS_Handshake.Supported_Groups;
+         Signature_Algorithms : TLS_Handshake.Signature_Algorithms;
          Signature_Algorithms_Cert_Enabled : Boolean
-            then Signature_Algorithms_Length_Cert
+            then Signature_Algorithms_Cert
                if Signature_Algorithms_Cert_Enabled = True,
             then Key_Shares_Length
                if Signature_Algorithms_Cert_Enabled = False;
-         Signature_Algorithms_Length_Cert : TLS_Handshake.Signature_Algorithms_Length
-            then Signature_Algorithms_Length_Cert
-               with Length => Signature_Algorithms_Length_Cert;
-         Signature_Algorithms_Cert : TLS_Handshake.Signature_Schemes;
-         Key_Shares_Length : TLS_Handshake.Key_Shares_Length
-            then Key_Shares
-               with Length => Key_Shares_Length;
-         Key_Shares : TLS_Handshake.Key_Share_Entries;
-         Protocols_Length : TLS_Handshake.Protocols_Length
-            then Protocols
-               with Length => Protocols_Length;
-         Protocols : TLS_Handshake.Protocol_Names;
+         Signature_Algorithms_Cert : TLS_Handshake.Signature_Algorithms_Cert;
+         Key_Shares : TLS_Handshake.Key_Share_CH;
+         Protocols : TLS_Handshake.Protocol_Name_List;
          Server_Authentication_Enabled : Boolean;
          Post_Handshake_Auth_Enabled : Boolean;
          Early_Data_Enabled : Boolean;
@@ -156,12 +137,12 @@ package GreenTLS is
          Name_Length : Name_Length
             then Name
                with Length = Name_Length;
-         Name : Payload;
+         Name : Opaque;
          Port : Port;
       end message;
 
    type Keystore_Message_Type is (KEYSTORE_REQUEST, KEYSTORE_RESPONSE) with Size => 8;
-   type Keystore_Request_Type is (KEYSTORE_REQUEST_SERVER_PREFERRED_GROUPS, KEYSTORE_REQUEST_PSKS) with Size => 8;
+   type Keystore_Request_Type is (KEYSTORE_REQUEST_SERVER_PREFERRED_GROUPS, KEYSTORE_REQUEST_PSKS, KEYSTORE_REQUEST_CERTIFICATES, KEYSTORE_REQUEST_SIGNATURE) with Size => 8;
    type Keystore_Payload_Length is range 0 .. 2**16 - 1 with Size => 16;
 
    type Keystore_Message is
@@ -169,7 +150,7 @@ package GreenTLS is
          Tag : Keystore_Message_Type
          Request : Keystore_Request_Type;
          Length : Keystore_Payload_Length;
-         Payload : Payload;
+         Payload : Opaque;
       end message;
 
    for Keystore_Message use (Payload => Connection)
@@ -194,7 +175,7 @@ package GreenTLS is
          Key_Length : Key_Length
             then Key
                with Length => Key_Length;
-         Key : Payload;
+         Key : Opaque;
       end message;
 
    type PSKs is array PSK;
@@ -209,6 +190,46 @@ package GreenTLS is
 
    for Keystore_Message use (Payload => PSK_Message)
       if Tag = KEYSTORE_RESPONSE and Request = KEYSTORE_REQUEST_PSKS;
+
+   type Certificate_Query is
+      message
+         Certificate_Authorities : TLS_Handshake.Certificate_Authorities;
+         OID_Filters : TLS_Handshake.OID_Filters;
+         Signature_Algorithms : TLS_Handshake.Signature_Algorithms;
+         Signature_Algorithms_Cert : TLS_Handshake.Signature_Algorithms_Cert;
+      end message;
+
+   for Keystore_Message use (Payload => Certificate_Query)
+      if Tag = KEYSTORE_REQUEST and Request = KEYSTORE_REQUEST_CERTIFICATES;
+
+   type Certificate_ID is mod 2**16;
+
+   type Certificate is
+      message
+         ID : Certificate_ID;
+         Length : TLS_Handshake.Certificate_List_Length
+            then Certificate_List
+               with Length => Length * 8;
+         Certificate_List : TLS_Handshake.Certificate_Entries;
+      end message;
+
+   for Keystore_Message use (Payload => Certificate)
+      if Tag = KEYSTORE_RESPONSE and Request = KEYSTORE_REQUEST_CERTIFICATES;
+
+   type Signature_Query is
+      message
+         ID : Certificate_ID;
+         Length : KM_Length
+            then Content
+               with Length => Length * 8;
+         Data : Payload;
+      end message;
+
+   for Keystore_Message use (Payload => Signature_Query)
+      if Tag = KEYSTORE_REQUEST and Request = KEYSTORE_REQUEST_SIGNATURE;
+
+   for Keystore_Message use (Payload => TLS_Handshake.Certificate_Verify)
+      if Tag = KEYSTORE_RESPONSE and Request = KEYSTORE_REQUEST_SIGNATURE;
 
    type Certificate_Validation_Result is (
       VALID_CERTIFICATE,
