@@ -842,7 +842,7 @@ states:
     actions:
     transitions:
       - target: SEND_FINISHED
-        name: Certificate_Request_Received = False
+        condition: Certificate_Request_Received = False
         doc: rfc8446.txt+3544:4-3546:19
       - target: QUERY_CERTIFICATES
         condition: Certificate_Request_Received = True
@@ -860,7 +860,7 @@ states:
         doc: rfc8446.txt+3456:22-3549:26
 
   - name: SEND_CERTIFICATE
-    variable:
+    variables:
       - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
     actions:
       - Client_Certificate_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE, Length => Certificate'Length, Payload => Certificate) where Certificate = TLS_Handshake.Certificate'(Certificate_Request_Context_Length => Certificate_Request.Certificate_Request_Context_Length, Certificate_Request_Context => Certificate_Request.Certificate_Request_Context, Certificate_List_Length => C.Length, Certificate_List => C.Certificate_List) where C = GreenTLS.Certificate (Keystore_Message.Payload)
@@ -873,7 +873,7 @@ states:
         doc: rfc8446.txt+3829:24-3833:11
 
   - name: SEND_EMPTY_CERTIFICATE
-    variable:
+    variables:
       - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
     actions:
       - Client_Certificate_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE, Length => Certificate'Length, Payload => Certificate) where Certificate = TLS_Handshake.Certificate'(Certificate_Request_Context_Length => Certificate_Request.Certificate_Request_Context_Length, Certificate_Request_Context => Certificate_Request.Certificate_Request_Context, Certificate_List_Length => 0)
@@ -893,7 +893,7 @@ states:
       - target: SEND_CERTIFICATE_VERIFY
 
   - name: SEND_CERTIFICATE_VERIFY
-    variable:
+    variables:
       - "Client_Certificate_Verify_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
     actions:
       - Client_Certificate_Verify_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE_VERIFY, Length => Certificate_Verify'Length, Payload => Certificate_Verify) where Certificate_Verify = TLS_Handshake.Certificate_Verify (Keystore_Message.Payload)
