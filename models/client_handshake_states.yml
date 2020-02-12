@@ -888,6 +888,7 @@ states:
       - target: SEND_FINISHED
 
   - name: QUERY_SIGNATURE
+    variables:
       - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message'(Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_SIGNATURE, Length => Query'Length, Payload => Query) where Query = GreenTLS.Signature_Query'(ID => GreenTLS.Certificate (Keystore_Message.Payload).ID, Length => Hash'Length, Data => Hash) where Hash = Get_Hash (Transcript_Hash).Data)
     actions:
     transitions:
@@ -1078,6 +1079,7 @@ states:
       - target: CONNECTED.PHA_SEND_FINISHED
 
   - name: CONNECTED.PHA_QUERY_SIGNATURE
+    variables:
       - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message'(Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_SIGNATURE, Length => Query'Length, Payload => Query) where Query = GreenTLS.Signature_Query'(ID => GreenTLS.Certificate (Keystore_Message.Payload).ID, Length => Hash'Length, Data => Hash) where Hash = Get_Hash (Transcript_Hash).Data)
     actions:
     transitions:
@@ -1120,7 +1122,7 @@ states:
       - Server_IV := HKDF_Expand_Label (GreenTLS.Content'(Data => Server_Application_Traffic_Secret.Data), "iv", Get_Hash (Empty_Hash), Keystore_Message.IV_Length)
       - Success_Server := Write (Record_Control_Channel, GreenTLS.Control_Message (Tag => KEY_UPDATE_SERVER, Length => Data'Length, Data => Data) where Data = GreenTLS.Record_Keys'(Key_Length => Server_Key'Length, Key => Server_Key.Data, IV_Length => Server_IV'Length, IV => Server_IV.Data)
     transitions:
-      - target: ERROR.INTERNAL
+      - target: ERROR.INTERNAL_ERROR
         condition: Success_Server = False
       - target: CONNECTED.SEND_KEY_UPDATE
         condition: Key_Update_Message.Request_Update = UPDATE_REQUESTED
