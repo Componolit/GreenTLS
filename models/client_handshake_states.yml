@@ -1149,33 +1149,9 @@ states:
     transitions:
       - target: ERROR.SEND_LOCAL
 
-  - name: ERROR.CLOSE_NOTIFY
-    actions:
-      - Error := TLS_Alert.CLOSE_NOTIFY
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
   - name: ERROR.UNEXPECTED_MESSAGE
     actions:
       - Error := TLS_Alert.UNEXPECTED_MESSAGE
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.BAD_RECORD_MAC
-    actions:
-      - Error := TLS_Alert.BAD_RECORD_MAC
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.RECORD_OVERFLOW
-    actions:
-      - Error := TLS_Alert.RECORD_OVERFLOW
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.HANDSHAKE_FAILURE
-    actions:
-      - Error := TLS_Alert.HANDSHAKE_FAILURE
     transitions:
       - target: ERROR.SEND_REMOTE
 
@@ -1215,18 +1191,6 @@ states:
     transitions:
       - target: ERROR.SEND_REMOTE
 
-  - name: ERROR.UNKNOWN_CA
-    actions:
-      - Error := TLS_Alert.UNKNOWN_CA
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.ACCESS_DENIED
-    actions:
-      - Error := TLS_Alert.ACCESS_DENIED
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
   - name: ERROR.DECODE_ERROR
     actions:
       - Error := TLS_Alert.DECODE_ERROR
@@ -1245,69 +1209,15 @@ states:
     transitions:
       - target: ERROR.SEND_REMOTE
 
-  - name: ERROR.INSUFFICIENT_SECURITY
-    actions:
-      - Error := TLS_Alert.INSUFFICIENT_SECURITY
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
   - name: ERROR.INTERNAL_ERROR
     actions:
       - Error := TLS_Alert.INTERNAL_ERROR
     transitions:
       - target: ERROR.SEND_REMOTE
 
-  - name: ERROR.INAPPROPRIATE_FALLBACK
-    actions:
-      - Error := TLS_Alert.INAPPROPRIATE_FALLBACK
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.USER_CANCELED
-    actions:
-      - Error := TLS_Alert.USER_CANCELED
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
   - name: ERROR.MISSING_EXTENSION
     actions:
       - Error := TLS_Alert.MISSING_EXTENSION
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.UNSUPPORTED_EXTENSION
-    actions:
-      - Error := TLS_Alert.UNSUPPORTED_EXTENSION
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.UNRECOGNIZED_NAME
-    actions:
-      - Error := TLS_Alert.UNRECOGNIZED_NAME
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.BAD_CERTIFICATE_STATUS_RESPONSE
-    actions:
-      - Error := TLS_Alert.BAD_CERTIFICATE_STATUS_RESPONSE
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.UNKNOWN_PSK_IDENTITY
-    actions:
-      - Error := TLS_Alert.UNKNOWN_PSK_IDENTITY
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.CERTIFICATE_REQUIRED
-    actions:
-      - Error := TLS_Alert.CERTIFICATE_REQUIRED
-    transitions:
-      - target: ERROR.SEND_REMOTE
-
-  - name: ERROR.NO_APPLICATION_PROTOCOL
-    actions:
-      - Error := TLS_Alert.NO_APPLICATION_PROTOCOL
     transitions:
       - target: ERROR.SEND_REMOTE
 
