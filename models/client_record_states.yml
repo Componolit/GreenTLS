@@ -1,3 +1,5 @@
+# FIXME: Add check in NETWORK_IN.HANDSHAKE: if Handshake_Message.Tag = KEY_UPDATE then pause forwarding application data until new server key received from Handshake layer
+# FIXME: Add check in HANDSHAKE: if Handshake_Message.Tag = KEY_UPDATE then pause forwarding application data until new client key received from Handshake layer
 channels:
   - name: Network_Channel
     type: TLS_Record.TLS_Record

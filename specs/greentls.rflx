@@ -142,7 +142,13 @@ package GreenTLS is
       end message;
 
    type Keystore_Message_Type is (KEYSTORE_REQUEST, KEYSTORE_RESPONSE) with Size => 8;
-   type Keystore_Request_Type is (KEYSTORE_REQUEST_SERVER_PREFERRED_GROUPS, KEYSTORE_REQUEST_PSKS, KEYSTORE_REQUEST_CERTIFICATES, KEYSTORE_REQUEST_SIGNATURE) with Size => 8;
+   type Keystore_Request_Type is (
+      KEYSTORE_REQUEST_SERVER_PREFERRED_GROUPS,
+      KEYSTORE_REQUEST_PSKS,
+      KEYSTORE_REQUEST_CERTIFICATES,
+      KEYSTORE_REQUEST_SIGNATURE,
+      KEYSTORE_REQUEST_NEW_SESSION_TICKET
+      ) with Size => 8;
    type Keystore_Payload_Length is range 0 .. 2**16 - 1 with Size => 16;
 
    type Keystore_Message is
@@ -230,6 +236,24 @@ package GreenTLS is
 
    for Keystore_Message use (Payload => TLS_Handshake.Certificate_Verify)
       if Tag = KEYSTORE_RESPONSE and Request = KEYSTORE_REQUEST_SIGNATURE;
+
+   type New_Session_Ticket is
+      message
+         Connection : Connection;
+         Session : TLS_Handshake.New_Session_Ticket
+         PSK_Length : KM_Length
+            then PSK
+               with Length => PSK_Length;
+         PSK : Opaque;
+      end message;
+
+   for Keystore_Message use (Payload => New_Session_Ticket)
+      if Tag = KEYSTORE_REQUEST and Request = KEYSTORE_REQUEST_NEW_SESSION_TICKET;
+
+   type Done is null message;
+
+   for Keystore_Message use (Payload => Done)
+      if Tag = KEYSTORE_RESPONSE and Request = KEYSTORE_REQUEST_NEW_SESSION_TICKET;
 
    type Certificate_Validation_Result is (
       VALID_CERTIFICATE,
