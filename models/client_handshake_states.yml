@@ -7,25 +7,25 @@ initial: START
 final: FINAL
 channels:
   - name: Record_Data_Channel
-    type: TLS_Handshake.TLS_Handshake
+    type: Packet
     mode: Read_Write
   - name: Record_Control_Channel
-    type: GreenTLS.Control_Message
+    type: Packet
     mode: Write
   - name: RNG_Channel
     type: Stream
     mode: Read
   - name: Keystore_Channel
-    type: GreenTLS.Keystore_Message
+    type: Packet
     mode: Read_Write
   - name: Application_Control_Channel
-    type: GreenTLS.Application_Control_Message
+    type: Packet
     mode: Read_Write
   - name: Configuration_Channel
-    type: GreenTLS.Configuration
+    type: Packet
     mode: Read
   - name: Connection_Channel
-    type: GreenTLS.Connection
+    type: Packet
     mode: Read
 types:
   - "Hash_Context is private"
