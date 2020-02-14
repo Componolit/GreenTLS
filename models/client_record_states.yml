@@ -2,22 +2,16 @@
 # FIXME: Add check in HANDSHAKE: if Handshake_Message.Tag = KEY_UPDATE then pause forwarding application data until new client key received from Handshake layer
 channels:
   - name: Network_Channel
-    type: Packet
     mode: Read_Write
   - name: Data_Channel
-    type: Stream
     mode: Read_Write
   - name: Application_Control_Channel
-    type: Packet
     mode: Read_Write
   - name: Handshake_Control_Channel
-    type: Packet
     mode: Read
   - name: Handshake_Data_Channel
-    type: Stream
     mode: Read_Write
   - name: Heartbeat_Data_Channel
-    type: Packet
     mode: Read_Write
 variables:
   - "Alert_Message : TLS_Alert.Alert := Initialize (16)"

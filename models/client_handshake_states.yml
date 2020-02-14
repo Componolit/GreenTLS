@@ -7,25 +7,18 @@ initial: START
 final: FINAL
 channels:
   - name: Record_Data_Channel
-    type: Packet
     mode: Read_Write
   - name: Record_Control_Channel
-    type: Packet
     mode: Write
   - name: RNG_Channel
-    type: Stream
     mode: Read
   - name: Keystore_Channel
-    type: Packet
     mode: Read_Write
   - name: Application_Control_Channel
-    type: Packet
     mode: Read_Write
   - name: Configuration_Channel
-    type: Packet
     mode: Read
   - name: Connection_Channel
-    type: Packet
     mode: Read
 types:
   - "Hash_Context is private"
