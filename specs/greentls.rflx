@@ -270,4 +270,16 @@ package GreenTLS is
       DECRYPT_ERROR,
    ) with Size => 8;
 
+   type RNG_Message_Type is (RNG_REQUEST, KEYSTORE_RESPONSE) with Size => 8;
+
+   type RNG_Message is
+      message
+         Tag : RNG_Message_Type;
+         Length : KM_Length
+            then Data
+               with Length => Length * 8,
+               if Tag = RNG_RESPONSE;
+         Data : Opaque;
+      end message;
+
 end GreenTLS;

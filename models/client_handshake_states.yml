@@ -24,56 +24,57 @@ types:
   - "Hash_Context is private"
 variables:
   - "Application_Layer_Protocol_Negotiation_Received : Boolean := False"
-  - "Binders : TLS_Handshake.PSK_Binder_Entries := Initialize (4096 * 8)"
-  - "CCR_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+  - "Binders : TLS_Handshake.PSK_Binder_Entries"
+  - "CCR_Message : TLS_Handshake.Handshake"
   - "CH_Cookie_Prepared : Boolean := False"
   - "CH_Key_Share_Prepared : Boolean := False"
   - "CH_PSK_Prepared : Boolean := False"
-  - "Certificate_Authorities : TLS_Handshake.Certificate_Authorities := Initialize (4096 * 8)"
+  - "Certificate_Authorities : TLS_Handshake.Certificate_Authorities"
   - "Certificate_Authorities_Received : Boolean := False"
-  - "Certificate_Request : TLS_Handshake.Certificate_Request := Initialize (4096 * 8)"
+  - "Certificate_Request : TLS_Handshake.Certificate_Request"
   - "Certificate_Request_Received : Boolean := False"
-  - "Certificate_Verify_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
-  - "Client_Application_Traffic_Secret : GreenTLS.Content := Initialize (512)"
-  - "Client_Handshake_Traffic_Secret : GreenTLS.Content := Initialize (512)"
+  - "Certificate_Verify_Handshake_Message : TLS_Handshake.Handshake"
+  - "Client_Application_Traffic_Secret : GreenTLS.Content"
+  - "Client_Handshake_Traffic_Secret : GreenTLS.Content"
   - "Client_Hello_1_Hash : Hash_Context"
-  - "Client_Hello_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
-  - "Client_Shares : TLS_Handshake.Key_Share_Entries := Initialize (4096 * 8)"
-  - "Connection : GreenTLS.Connection := Initialize (4096 * 8)"
+  - "Client_Hello_Handshake_Message : TLS_Handshake.Handshake"
+  - "Client_Shares : TLS_Handshake.Key_Share_Entries"
+  - "Connection : GreenTLS.Connection"
   - "DHE_Accepted : Boolean := False"
-  - "Derived_Handshake_Secret : GreenTLS.Content := Initialize (512)"
+  - "Derived_Handshake_Secret : GreenTLS.Content"
   - "Early_Data_Received : Boolean := False"
-  - "Early_Secret : GreenTLS.Content := Initialize (512)"
-  - "Encrypted_Extensions_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+  - "Early_Secret : GreenTLS.Content"
+  - "Encrypted_Extensions_Handshake_Message : TLS_Handshake.Handshake"
   - "Error : TLS_Alert.Alert_Description"
-  - "Extensions_List : TLS_Handshake.Extensions := Initialize (4096 * 8)"
-  - "Finished_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+  - "Extensions_List : TLS_Handshake.Extensions"
+  - "Finished_Handshake_Message : TLS_Handshake.Handshake"
   - "Hash_Length : GreenTLS.KM_Length"
   - "Heartbeat_Received : Boolean := False"
   - "Identity_Index : TLS_Handshake.Identity_Index"
-  - "Keystore_Message : GreenTLS.Keystore_Message := Initialize (192)"
+  - "Keystore_Message : GreenTLS.Keystore_Message"
   - "Max_Fragment_Length : TLS_Handshake.Max_Fragment_Length_Value"
   - "Max_Fragment_Length_Received : Boolean := False"
-  - "OID_Filters : TLS_Handshake.OID_Filters := Initialize (4096 * 8)"
+  - "OID_Filters : TLS_Handshake.OID_Filters"
   - "OID_Filters_Received : Boolean := False"
-  - "PSKs : GreenTLS.PSKs := Initialize (4096 * 8)"
-  - "Post_Handshake_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
-  - "Pre_Shared_Key_CH : TLS_Handshake.Pre_Shared_Key_CH := Initialize (4096 * 8)"
-  - "Resumption_Master_Secret : GreenTLS.Content := Initialize (512)"
+  - "PSKs : GreenTLS.PSKs"
+  - "Post_Handshake_Handshake_Message : TLS_Handshake.Handshake"
+  - "Random_Message : GreenTLS.RNG_Message"
+  - "Pre_Shared_Key_CH : TLS_Handshake.Pre_Shared_Key_CH"
+  - "Resumption_Master_Secret : GreenTLS.Content"
   - "Retry_Request_Received : Boolean := False"
   - "Selected_Group : TLS_Handshake.Named_Group"
-  - "Server_Application_Traffic_Secret : GreenTLS.Content := Initialize (512)"
-  - "Server_Handshake_Traffic_Secret : GreenTLS.Content := Initialize (512)"
-  - "Server_Hello_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
-  - "Server_Name_Extension : TLS_Handshake.Extension := Initialize (4096 * 8)"
+  - "Server_Application_Traffic_Secret : GreenTLS.Content"
+  - "Server_Handshake_Traffic_Secret : GreenTLS.Content"
+  - "Server_Hello_Handshake_Message : TLS_Handshake.Handshake"
+  - "Server_Name_Extension : TLS_Handshake.Extension"
   - "Server_Name_Received : Boolean := False"
-  - "Server_Preferred_Groups : TLS_Handshake.Supported_Groups := Initialize (176)"
-  - "Signature_Algorithms : TLS_Handshake.Signature_Algorithms := Initialize (4096 * 8)"
-  - "Signature_Algorithms_Cert : TLS_Handshake.Signature_Algorithms := Initialize (4096 * 8)"
+  - "Server_Preferred_Groups : TLS_Handshake.Supported_Groups"
+  - "Signature_Algorithms : TLS_Handshake.Signature_Algorithms"
+  - "Signature_Algorithms_Cert : TLS_Handshake.Signature_Algorithms"
   - "Signature_Algorithms_Cert_Received : Boolean := False"
   - "Signature_Algorithms_Received : Boolean := False"
   - "Success : Boolean"
-  - "Supported_Groups : TLS_Handshake.Named_Groups := Initialize (160)"
+  - "Supported_Groups : TLS_Handshake.Named_Groups"
   - "Supported_Groups_Received : Boolean := False"
   - "Transcript_Hash : Hash_Context"
 renames:
@@ -140,8 +141,8 @@ states:
 
   - name: CREATE_CLIENT_HELLO_EXTENSIONS
     variables:
-      - "Supported_Version : TLS_Handshake.Supported_Version := Initialize (16)"
-      - "Supported_Versions_Extension : TLS_Handshake.CH_Extension := Initialize (48)"
+      - "Supported_Version : TLS_Handshake.Supported_Version"
+      - "Supported_Versions_Extension : TLS_Handshake.CH_Extension"
     actions:
       - Supported_Version := TLS_Handshake.Supported_Version'(Version => TLS_Handshake.TLS_1_3)
       - Supported_Versions_Extension := TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_SUPPORTED_VERSIONS, Data_Length => Supported_Version'Length, Data => Supported_Version)
@@ -160,7 +161,7 @@ states:
 
   - name: START.POST_HANDSHAKE_AUTH_EXTENSION
     variables:
-      - "Post_Handshake_Auth_Extension : TLS_Handshake.CH_Extension := Initialize (32)"
+      - "Post_Handshake_Auth_Extension : TLS_Handshake.CH_Extension"
     actions:
       - Post_Handshake_Auth_Extension := TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_POST_HANDSHAKE_AUTH, Data_Length => 0)
       - Extensions_List'Append (Post_Handshake_Auth_Extension)
@@ -175,9 +176,9 @@ states:
 
   - name: START.DHE
     variables:
-      - "Supported_Groups_Extension : TLS_Handshake.CH_Extension := Initialize (208)"
-      - "Key_Share_Extension : TLS_Handshake.CH_Extension := Initialize (4096 * 8)"
-      - "Signature_Algorithms_Extension : TLS_Handshake.CH_Extension := Initialize (320)"
+      - "Supported_Groups_Extension : TLS_Handshake.CH_Extension"
+      - "Key_Share_Extension : TLS_Handshake.CH_Extension"
+      - "Signature_Algorithms_Extension : TLS_Handshake.CH_Extension"
     actions:
       - Supported_Groups_Extension := TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_SUPPORTED_GROUPS, Data_Length => Modes'Length, Data => Modes) where Modes = TLS_Handshake.Supported_Groups'(Length => Configuration.Supported_Groups_Length, Groups => Configuration.Supported_Groups)
       - Extensions_List'Append (Supported_Groups_Extension)
@@ -197,7 +198,7 @@ states:
 
   - name: START.DHE_SIGNATURE_ALGORITHMS
     variables:
-      - "Signature_Algorithms_Cert_Extension : TLS_Handshake.CH_Extension := Initialize (320)"
+      - "Signature_Algorithms_Cert_Extension : TLS_Handshake.CH_Extension"
     actions:
       - Signature_Algorithms_Cert_Extension := TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_SIGNATURE_ALGORITHMS_CERT, Data_Length => Modes'Length, Data => Modes) where Modes = TLS_Handshake.Signature_Algorithms_Cert'(Length => Configuration.Signature_Algorithms_Cert_Length, Algorithms => Configuration.Signature_Algorithms_Cert)
       - Extensions_List'Append (Signature_Algorithms_Cert_Extension)
@@ -220,7 +221,7 @@ states:
 
   - name: START.PSK_EXTENSION_CHECK
     variables:
-      - "PSK_Identities : TLS_Handshake.PSK_Identities := Initialize (4096 * 8)"
+      - "PSK_Identities : TLS_Handshake.PSK_Identities"
     actions:
       - PSKs := GreenTLS.PSK_Message (Keystore_Message.Payload).PSKs
       - Binders_Length := Calculate_Binders_Length (PSKs)
@@ -229,17 +230,25 @@ states:
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Pre_Shared_Key_CH'Valid = False
+      - target: START.GET_RANDOM
+
+  - name: START.GET_RANDOM
+    actions:
+      - Random_Message := Call (RNG_Channel, GreenTLS.RNG_Message'(Tag => GreenTLS.RNG_REQUEST, Length => 32))
+    transitions:
+      - target: ERROR.INTERNAL_ERROR
+        condition: Random_Message'Valid = False or Random_Message.Tag /= GreenTLS.RNG_RESPONSE or Random_Message.Length /= 32
       - target: START.PSK_EXTENSIONS
 
   - name: START.PSK_EXTENSIONS
     variables:
-      - "PSK_Key_Exchange_Modes_Extension : TLS_Handshake.CH_Extension := Initialize (48)"
+      - "PSK_Key_Exchange_Modes_Extension : TLS_Handshake.CH_Extension"
       - "Client_Hello_Hash : Hash_Context"
     actions:
       - PSK_Key_Exchange_Modes_Extension := TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PSK_KEY_EXCHANGE_MODES, Data_Length => Modes'Length, Data => Modes) where Modes = TLS_Handshake.PSK_Key_Exchange_Modes'(Length => Configuration.PSK_Key_Exchange_Modes_Length, Modes => Configuration.PSK_Key_Exchange_Modes)
       - Extensions_List'Append (PSK_Key_Exchange_Modes_Extension)
       - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => Pre_Shared_Key_CH'Length, Data => Pre_Shared_Key_CH)
-      - Client_Hello_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CLIENT_HELLO, Length => CH'Length, Payload => CH) where CH = TLS_Handshake.Client_Hello'(Legacy_Version => TLS_1_2, Random => Random.Data, Legacy_Session_ID_Length => 0, Cipher_Suites_Length => Configuration.Cipher_Suites'Length, Cipher_Suites => Configuration.Cipher_Suites, Legacy_Compression_Methods_Length => 0, Extensions_Length => Extensions_List'Length, Extensions => Extensions_List)
+      - Client_Hello_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CLIENT_HELLO, Length => CH'Length, Payload => CH) where CH = TLS_Handshake.Client_Hello'(Legacy_Version => TLS_1_2, Random => Random_Message.Data, Legacy_Session_ID_Length => 0, Cipher_Suites_Length => Configuration.Cipher_Suites'Length, Cipher_Suites => Configuration.Cipher_Suites, Legacy_Compression_Methods_Length => 0, Extensions_Length => Extensions_List'Length, Extensions => Extensions_List)
       - Client_Hello_Hash := Empty_Hash
       - Client_Hello_Hash := Update_Hash (Client_Hello_Hash, Truncate_Client_Hello (Client_Hello_Handshake_Message)'Opaque)
       - Binders := Calculate_Binders (PSKs, Get_Hash (Client_Hello_Hash))
@@ -251,11 +260,7 @@ states:
       - target: START.SEND
 
   - name: START.SEND
-    variables:
-      - "Random : GreenTLS.Content := Initialize (32 * 8)"
     actions:
-      - Random := Read (RNG_Channel)
-      - Client_Hello_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CLIENT_HELLO, Length => CH'Length, Payload => CH) where CH = TLS_Handshake.Client_Hello'(Legacy_Version => TLS_1_2, Random => Random.Data, Legacy_Session_ID_Length => 0, Cipher_Suites_Length => Configuration.Cipher_Suites'Length, Cipher_Suites => Configuration.Cipher_Suites, Legacy_Compression_Methods_Length => 0, Extensions_Length => Extensions_List'Length, Extensions => Extensions_List)
       - Success := Write (Record_Data_Channel, Client_Hello_Handshake_Message)
       - Client_Hello_1_Hash := Empty_Hash
       - Client_Hello_1_Hash := Update_Hash (Client_Hello_1_Hash, Truncate_Client_Hello (Client_Hello_Handshake_Message)'Opaque)
@@ -271,9 +276,9 @@ states:
 
   - name: START.SEND_CLIENT_EARLY_TRAFFIC_SECRET
     variables:
-      - "Client_Early_Traffic_Secret : GreenTLS.Content := Initialize (512)"
-      - "Client_Key : GreenTLS.Content := Initialize (512)"
-      - "Client_IV : GreenTLS.Content := Initialize (512)"
+      - "Client_Early_Traffic_Secret : GreenTLS.Content"
+      - "Client_Key : GreenTLS.Content"
+      - "Client_IV : GreenTLS.Content"
     actions:
       - Early_Secret := HKDF_Extract (Get_Zero_Content (Get_Hash_Length (PSKs (0).Cipher_Suite)), GreenTLS.Content (Data => PSKs (0).Key))
       - Client_Early_Traffic_Secret := Derive_Secret (Early_Secret.Data, "c e traffic", Get_Hash (Transcript_Hash))
@@ -374,7 +379,7 @@ states:
 
   - name: WAIT_SH.PARSE_HRR
     variables:
-      - "Client_Supported_Groups : TLS_Handshake.Named_Groups := Initialize (160)"
+      - "Client_Supported_Groups : TLS_Handshake.Named_Groups"
     actions:
       - Retry_Request_Received := True
       - Client_Supported_Groups := TLS_Handshake.Supported_Groups ([for E in Client_Hello_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_SUPPORTED_GROUPS]'Head.Data).Groups
@@ -439,7 +444,7 @@ states:
 
   - name: WAIT_SH.PSK_EXTENSION_CHECK
     variables:
-      - "PSK_Identities : TLS_Handshake.PSK_Identities := Initialize (4096 * 8)"
+      - "PSK_Identities : TLS_Handshake.PSK_Identities"
     actions:
       - PSKs := [for K in GreenTLS.PSK_Message (Keystore_Message.Payload).PSKs => K when K.Cipher_Suite = Server_Hello.Cipher_Suite]
       - Binders_Length := Calculate_Binders_Length (PSKs)
@@ -452,13 +457,13 @@ states:
 
   - name: WAIT_SH.PSK_EXTENSIONS
     variables:
-      - "PSK_Key_Exchange_Modes_Extension : TLS_Handshake.CH_Extension := Initialize (48)"
+      - "PSK_Key_Exchange_Modes_Extension : TLS_Handshake.CH_Extension"
       - "Client_Hello_Hash : Hash_Context"
     actions:
       - PSK_Key_Exchange_Modes_Extension := TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PSK_KEY_EXCHANGE_MODES, Data_Length => Modes'Length, Data => Modes) where Modes = TLS_Handshake.PSK_Key_Exchange_Modes'(Length => Configuration.PSK_Key_Exchange_Modes_Length, Modes => Configuration.PSK_Key_Exchange_Modes)
       - Extensions_List'Append (PSK_Key_Exchange_Modes_Extension)
       - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => Pre_Shared_Key_CH'Length, Data => Pre_Shared_Key_CH)
-      - Client_Hello_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CLIENT_HELLO, Length => CH'Length, Payload => CH) where CH = TLS_Handshake.Client_Hello'(Legacy_Version => TLS_1_2, Random => Random.Data, Legacy_Session_ID_Length => 0, Cipher_Suites_Length => Configuration.Cipher_Suites'Length, Cipher_Suites => Configuration.Cipher_Suites, Legacy_Compression_Methods_Length => 0, Extensions_Length => Extensions_List'Length, Extensions => Extensions_List)
+      - Client_Hello_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CLIENT_HELLO, Length => CH'Length, Payload => CH) where CH = TLS_Handshake.Client_Hello'(Legacy_Version => TLS_1_2, Random => Random_Message.Data, Legacy_Session_ID_Length => 0, Cipher_Suites_Length => Configuration.Cipher_Suites'Length, Cipher_Suites => Configuration.Cipher_Suites, Legacy_Compression_Methods_Length => 0, Extensions_Length => Extensions_List'Length, Extensions => Extensions_List)
       - Client_Hello_Hash := Empty_Hash
       - Client_Hello_Hash := Update_Hash (Client_Hello_Hash, Truncate_Client_Hello (Client_Hello_Handshake_Message)'Opaque)
       - Binders := Calculate_Binders (PSKs, Get_Hash (Client_Hello_Hash))
@@ -478,8 +483,8 @@ states:
 
   - name: WAIT_SH.SEND_CH
     variables:
-      - "Random : GreenTLS.Content := Initialize (32 * 8)"
-      - "Transcript_Hash_2 : GreenTLS.Content := Initialize (512)"
+      - "Random : GreenTLS.Content"
+      - "Transcript_Hash_2 : GreenTLS.Content"
     actions:
       - Transcript_Hash_2 := Empty_Hash
       - Transcript_Hash_2 := Update_Hash (Transcript_Hash_2, TLS_Handshake.Handshake'(Tag => HANDSHAKE_MESSAGE_HASH, Length => CH1_Hash'Length, Payload => CH1_Hash.Data)'Opaque) where CH1_Hash := Get_Hash (Client_Hello_1_Hash)
@@ -498,12 +503,12 @@ states:
 
   - name: SET_RECORD_KEYS
     variables:
-      - "Derived_Early_Secret : GreenTLS.Content := Initialize (512)"
-      - "Handshake_Secret : GreenTLS.Content := Initialize (512)"
-      - "Server_Key : GreenTLS.Content := Initialize (512)"
-      - "Server_IV : GreenTLS.Content := Initialize (512)"
-      - "Client_Key : GreenTLS.Content := Initialize (512)"
-      - "Client_IV : GreenTLS.Content := Initialize (512)"
+      - "Derived_Early_Secret : GreenTLS.Content"
+      - "Handshake_Secret : GreenTLS.Content"
+      - "Server_Key : GreenTLS.Content"
+      - "Server_IV : GreenTLS.Content"
+      - "Client_Key : GreenTLS.Content"
+      - "Client_IV : GreenTLS.Content"
       - "Success_Client : Boolean"
       - "Success_Server : Boolean"
     actions:
@@ -606,7 +611,7 @@ states:
 
   - name: WAIT_EE.PROCESS_APPLICATION_LAYER_PROTOCOL_NEGOTIATION
     variables:
-      - "Protocols : TLS_Handshake.Protocol_Names := Initialize (4096 * 8)"
+      - "Protocols : TLS_Handshake.Protocol_Names"
     actions:
       - Protocols := TLS_Handshake.Protocol_Name_List ([for E in Encrypted_Extensions_Message.Extensions => E when E.Tag = TLS_Handshake.EXTENSION_APPLICATION_LAYER_PROTOCOL_NEGOTIATION]'Head.Data).Protocol_Name_List
       - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(GreenTLS.APPLICATION_PROTOCOL, Protocols'Head))
@@ -799,9 +804,9 @@ states:
 
   - name: WAIT_FINISHED
     variables:
-      - "Finished_Key : GreenTLS.Content := Initialize (512)"
-      - "Verify_Data : GreenTLS.Content := Initialize (4096 * 8)"
-      - "Master_Secret : GreenTLS.Content := Initialize (512)"
+      - "Finished_Key : GreenTLS.Content"
+      - "Verify_Data : GreenTLS.Content"
+      - "Master_Secret : GreenTLS.Content"
     actions:
       - Hash_Length := Get_Hash_Length (Server_Hello_Message.Cipher_Suite)
       - Finished_Handshake_Message := Read (Record_Data_Channel)
@@ -857,7 +862,7 @@ states:
 
   - name: SEND_CERTIFICATE
     variables:
-      - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+      - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake"
     actions:
       - Client_Certificate_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE, Length => Certificate'Length, Payload => Certificate) where Certificate = TLS_Handshake.Certificate'(Certificate_Request_Context_Length => Certificate_Request.Certificate_Request_Context_Length, Certificate_Request_Context => Certificate_Request.Certificate_Request_Context, Certificate_List_Length => C.Length, Certificate_List => C.Certificate_List) where C = GreenTLS.Certificate (Keystore_Message.Payload)
       - Success := Write (Record_Data_Channel, Client_Certificate_Message)
@@ -870,7 +875,7 @@ states:
 
   - name: SEND_EMPTY_CERTIFICATE
     variables:
-      - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+      - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake"
     actions:
       - Client_Certificate_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE, Length => Certificate'Length, Payload => Certificate) where Certificate = TLS_Handshake.Certificate'(Certificate_Request_Context_Length => Certificate_Request.Certificate_Request_Context_Length, Certificate_Request_Context => Certificate_Request.Certificate_Request_Context, Certificate_List_Length => 0)
       - Success := Write (Record_Data_Channel, Client_Certificate_Handshake_Message)
@@ -891,7 +896,7 @@ states:
 
   - name: SEND_CERTIFICATE_VERIFY
     variables:
-      - "Client_Certificate_Verify_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+      - "Client_Certificate_Verify_Handshake_Message : TLS_Handshake.Handshake"
     actions:
       - Client_Certificate_Verify_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE_VERIFY, Length => Certificate_Verify'Length, Payload => Certificate_Verify) where Certificate_Verify = TLS_Handshake.Certificate_Verify (Keystore_Message.Payload)
       - Success := Write (Record_Data_Channel, Client_Certificate_Verify_Handshake_Message)
@@ -903,7 +908,7 @@ states:
 
   - name: SEND_FINISHED
     variables:
-      - "Verify_Data : GreenTLS.Content := Initialize (4096 * 8)"
+      - "Verify_Data : GreenTLS.Content"
     actions:
       - Verify_Data := HMAC (Server_Hello_Message.Cipher_Suite, Finished_Key, Get_Hash (Transcript_Hash))
       - Finished_Key := null
@@ -916,10 +921,10 @@ states:
 
   - name: SEND_APPLICATION_RECORD_KEYS
     variables:
-      - "Server_Key : GreenTLS.Content := Initialize (512)"
-      - "Server_IV : GreenTLS.Content := Initialize (512)"
-      - "Client_Key : GreenTLS.Content := Initialize (512)"
-      - "Client_IV : GreenTLS.Content := Initialize (512)"
+      - "Server_Key : GreenTLS.Content"
+      - "Server_IV : GreenTLS.Content"
+      - "Client_Key : GreenTLS.Content"
+      - "Client_IV : GreenTLS.Content"
       - "Success_Client : Boolean"
       - "Success_Server : Boolean"
     actions:
@@ -956,7 +961,7 @@ states:
 
   - name: CONNECTED.NEW_SESSION_TICKET
     variables:
-      - "PSK : GreenTLS.Content := Initialize (512)"
+      - "PSK : GreenTLS.Content"
     actions:
       - PSK := HKDF_Expand_Label (GreenTLS.Content'(Data => Resumption_Master_Secret.Data), "resumption", GreenTLS.Content'(Data => New_Session_Ticket_Message.Ticket_Nonce), Hash_Length)
       - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message'(Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_NEW_SESSION_TICKET, Length => NST'Length, Payload => NST) where NST = GreenTLS.New_Session_Ticket'(Connection => Connection, Session => New_Session_Ticket_Message, PSK_Length => PSK'Length, PSK => PSK))
@@ -1048,7 +1053,7 @@ states:
 
   - name: CONNECTED.PHA_SEND_CERTIFICATE
     variables:
-      - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+      - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake"
     actions:
       - Client_Certificate_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE, Length => Certificate'Length, Payload => Certificate) where Certificate = TLS_Handshake.Certificate'(Certificate_Request_Context_Length => Certificate_Request.Certificate_Request_Context_Length, Certificate_Request_Context => Certificate_Request.Certificate_Request_Context, Certificate_List_Length => C.Length, Certificate_List => C.Certificate_List) where C = GreenTLS.Certificate (Keystore_Message.Payload)
       - Success := Write (Record_Data_Channel, Client_Certificate_Message)
@@ -1061,7 +1066,7 @@ states:
 
   - name: CONNECTED.PHA_SEND_EMPTY_CERTIFICATE
     variables:
-      - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+      - "Client_Certificate_Handshake_Message : TLS_Handshake.Handshake"
     actions:
       - Client_Certificate_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE, Length => Certificate'Length, Payload => Certificate) where Certificate = TLS_Handshake.Certificate'(Certificate_Request_Context_Length => Certificate_Request.Certificate_Request_Context_Length, Certificate_Request_Context => Certificate_Request.Certificate_Request_Context, Certificate_List_Length => 0)
       - Success := Write (Record_Data_Channel, Client_Certificate_Handshake_Message)
@@ -1082,7 +1087,7 @@ states:
 
   - name: CONNECTED.PHA_SEND_CERTIFICATE_VERIFY
     variables:
-      - "Client_Certificate_Verify_Handshake_Message : TLS_Handshake.Handshake := Initialize (4096 * 8)"
+      - "Client_Certificate_Verify_Handshake_Message : TLS_Handshake.Handshake"
     actions:
       - Client_Certificate_Verify_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CERTIFICATE_VERIFY, Length => Certificate_Verify'Length, Payload => Certificate_Verify) where Certificate_Verify = TLS_Handshake.Certificate_Verify (Keystore_Message.Payload)
       - Success := Write (Record_Data_Channel, Client_Certificate_Verify_Handshake_Message)
@@ -1094,7 +1099,7 @@ states:
 
   - name: CONNECTED.PHA_SEND_FINISHED
     variables:
-      - "Verify_Data : GreenTLS.Content := Initialize (4096 * 8)"
+      - "Verify_Data : GreenTLS.Content"
     actions:
       - Verify_Data := HMAC (Server_Hello_Message.Cipher_Suite, Finished_Key, Get_Hash (Transcript_Hash))
       - Finished_Key := null
@@ -1107,8 +1112,8 @@ states:
 
   - name: CONNECTED.KEY_UPDATE
     variables:
-      - "Server_Key : GreenTLS.Content := Initialize (512)"
-      - "Server_IV : GreenTLS.Content := Initialize (512)"
+      - "Server_Key : GreenTLS.Content"
+      - "Server_IV : GreenTLS.Content"
     actions:
       - Server_Application_Traffic_Secret = HKDF_Expand_Label (GreenTLS.Content'(Data => Server_Application_Traffic_Secret.Data), "traffic upd", Get_Hash (Empty_Hash), Hash_Length)
       - Server_Key := HKDF_Expand_Label (GreenTLS.Content'(Data => Server_Application_Traffic_Secret.Data), "key", Get_Hash (Empty_Hash), Keystore_Message.Key_Length)
@@ -1123,8 +1128,8 @@ states:
 
   - name: CONNECTED.SEND_KEY_UPDATE
     variables:
-      - "Client_Key : GreenTLS.Content := Initialize (512)"
-      - "Client_IV : GreenTLS.Content := Initialize (512)"
+      - "Client_Key : GreenTLS.Content"
+      - "Client_IV : GreenTLS.Content"
     actions:
       - Success := Write (Record_Data_Channel, TLS_Handshake.Handshake'(Tag => HANDSHAKE_KEY_UPDATE, Length => KU'Length, Payload => KU) where KU = TLS_Handshake.Key_Update'(Request_Update => TLS_Handshake.UPDATE_NOT_REQUESTED))
       - Client_Application_Traffic_Secret = HKDF_Expand_Label (GreenTLS.Content'(Data => Client_Application_Traffic_Secret), "traffic upd", Get_Hash (Empty_Hash), Hash_Length)
