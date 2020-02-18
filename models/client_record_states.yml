@@ -296,7 +296,7 @@ states:
       - "Success : Boolean"
     actions:
       - Network_Receive_Enabled := False
-      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Data'Length, Data => Data) where Description => Alert_Message.Description))
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Data'Length, Data => Data) where Description = Alert_Message.Description)
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Success = False
