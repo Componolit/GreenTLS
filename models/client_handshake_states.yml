@@ -127,7 +127,7 @@ states:
 
   - name: SERVER_PREFERRED_GROUPS.CONFIGURE
     actions:
-      - Server_Preferred_Groups := TLS_Handshake.Supported_Groups (Keystore_Message.Payload);
+      - Server_Preferred_Groups := TLS_Handshake.Supported_Groups (Keystore_Message.Payload)
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Server_Preferred_Groups'Valid = False
@@ -226,7 +226,7 @@ states:
       - PSKs := GreenTLS.PSK_Message (Keystore_Message.Payload).PSKs
       - Binders_Length := Calculate_Binders_Length (PSKs)
       - PSK_Identities := [for K in PSKs => K.Identity]
-      - Pre_Shared_Key_CH := TLS_Handshake.Pre_Shared_Key_CH'(Identities_Length => PSK_Identities'Length, Identities => PSK_Identities, Binders_Length => Length, Binders => null)
+      - Pre_Shared_Key_CH := TLS_Handshake.Pre_Shared_Key_CH'(Identities_Length => PSK_Identities'Length, Identities => PSK_Identities, Binders_Length => Length, Binders => FIXME_NULL)  # FIXME: the Binders argument was "null" previously -- what is the intended semantics?
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Pre_Shared_Key_CH'Valid = False
@@ -247,13 +247,13 @@ states:
     actions:
       - PSK_Key_Exchange_Modes_Extension := TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PSK_KEY_EXCHANGE_MODES, Data_Length => Modes'Length, Data => Modes) where Modes = TLS_Handshake.PSK_Key_Exchange_Modes'(Length => Configuration.PSK_Key_Exchange_Modes_Length, Modes => Configuration.PSK_Key_Exchange_Modes)
       - Extensions_List'Append (PSK_Key_Exchange_Modes_Extension)
-      - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => Pre_Shared_Key_CH'Length, Data => Pre_Shared_Key_CH)
+      - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => Pre_Shared_Key_CH'Length, Data => Pre_Shared_Key_CH))
       - Client_Hello_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CLIENT_HELLO, Length => CH'Length, Payload => CH) where CH = TLS_Handshake.Client_Hello'(Legacy_Version => TLS_1_2, Random => Random_Message.Data, Legacy_Session_ID_Length => 0, Cipher_Suites_Length => Configuration.Cipher_Suites'Length, Cipher_Suites => Configuration.Cipher_Suites, Legacy_Compression_Methods_Length => 0, Extensions_Length => Extensions_List'Length, Extensions => Extensions_List)
       - Client_Hello_Hash := Empty_Hash
       - Client_Hello_Hash := Update_Hash (Client_Hello_Hash, Truncate_Client_Hello (Client_Hello_Handshake_Message)'Opaque)
       - Binders := Calculate_Binders (PSKs, Get_Hash (Client_Hello_Hash))
       - Extensions_List := [for E in Extensions_List => E when E.Tag /= TLS_Handshake.EXTENSION_PRE_SHARED_KEY]
-      - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => PSK_CH'Length, Data => PSK_CH) where PSK_CH = TLS_Handshake.Pre_Shared_Key_CH'(Identities_Length => PSK_Identities'Length, Identities => PSK_Identities, Binders_Length => Length, Binders => Binders)
+      - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => PSK_CH'Length, Data => PSK_CH) where PSK_CH = TLS_Handshake.Pre_Shared_Key_CH'(Identities_Length => PSK_Identities'Length, Identities => PSK_Identities, Binders_Length => Length, Binders => Binders))
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Extensions_List'Valid = False
@@ -280,7 +280,7 @@ states:
       - "Client_Key : GreenTLS.Content"
       - "Client_IV : GreenTLS.Content"
     actions:
-      - Early_Secret := HKDF_Extract (Get_Zero_Content (Get_Hash_Length (PSKs (0).Cipher_Suite)), GreenTLS.Content (Data => PSKs (0).Key))
+      - Early_Secret := HKDF_Extract (Get_Zero_Content (Get_Hash_Length (PSKs'Head.Cipher_Suite)), GreenTLS.Content'(Data => PSKs'Head.Key))
       - Client_Early_Traffic_Secret := Derive_Secret (Early_Secret.Data, "c e traffic", Get_Hash (Transcript_Hash))
       - Client_Key := HKDF_Expand_Label (GreenTLS.Content'(Data => Client_Early_Traffic_Secret.Data), "key", Get_Hash (Empty_Hash), Keystore_Message.Key_Length)
       - Client_IV := HKDF_Expand_Label (GreenTLS.Content'(Data => Client_Early_Traffic_Secret.Data), "iv", Get_Hash (Empty_Hash), Keystore_Message.IV_Length)
@@ -449,7 +449,7 @@ states:
       - PSKs := [for K in GreenTLS.PSK_Message (Keystore_Message.Payload).PSKs => K when K.Cipher_Suite = Server_Hello.Cipher_Suite]
       - Binders_Length := Calculate_Binders_Length (PSKs)
       - PSK_Identities := [for K in PSKs => K.Identity]
-      - Pre_Shared_Key_CH := TLS_Handshake.Pre_Shared_Key_CH'(Identities_Length => PSK_Identities'Length, Identities => PSK_Identities, Binders_Length => Length, Binders => null)
+      - Pre_Shared_Key_CH := TLS_Handshake.Pre_Shared_Key_CH'(Identities_Length => PSK_Identities'Length, Identities => PSK_Identities, Binders_Length => Length, Binders => FIXME_NULL)  # FIXME: the Binders argument was "null" previously -- what is the intended semantics?
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Pre_Shared_Key_CH'Valid = False
@@ -462,13 +462,13 @@ states:
     actions:
       - PSK_Key_Exchange_Modes_Extension := TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PSK_KEY_EXCHANGE_MODES, Data_Length => Modes'Length, Data => Modes) where Modes = TLS_Handshake.PSK_Key_Exchange_Modes'(Length => Configuration.PSK_Key_Exchange_Modes_Length, Modes => Configuration.PSK_Key_Exchange_Modes)
       - Extensions_List'Append (PSK_Key_Exchange_Modes_Extension)
-      - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => Pre_Shared_Key_CH'Length, Data => Pre_Shared_Key_CH)
+      - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => Pre_Shared_Key_CH'Length, Data => Pre_Shared_Key_CH))
       - Client_Hello_Handshake_Message := TLS_Handshake.Handshake'(Tag => HANDSHAKE_CLIENT_HELLO, Length => CH'Length, Payload => CH) where CH = TLS_Handshake.Client_Hello'(Legacy_Version => TLS_1_2, Random => Random_Message.Data, Legacy_Session_ID_Length => 0, Cipher_Suites_Length => Configuration.Cipher_Suites'Length, Cipher_Suites => Configuration.Cipher_Suites, Legacy_Compression_Methods_Length => 0, Extensions_Length => Extensions_List'Length, Extensions => Extensions_List)
       - Client_Hello_Hash := Empty_Hash
       - Client_Hello_Hash := Update_Hash (Client_Hello_Hash, Truncate_Client_Hello (Client_Hello_Handshake_Message)'Opaque)
       - Binders := Calculate_Binders (PSKs, Get_Hash (Client_Hello_Hash))
       - Extensions_List := [for E in Extensions_List => E when E.Tag /= TLS_Handshake.EXTENSION_PRE_SHARED_KEY]
-      - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => PSK_CH'Length, Data => PSK_CH) where PSK_CH = TLS_Handshake.Pre_Shared_Key_CH'(Identities_Length => PSK_Identities'Length, Identities => PSK_Identities, Binders_Length => Length, Binders => Binders)
+      - Extensions_List'Append (TLS_Handshake.CH_Extension'(Tag => TLS_Handshake.EXTENSION_PRE_SHARED_KEY, Length => PSK_CH'Length, Data => PSK_CH) where PSK_CH = TLS_Handshake.Pre_Shared_Key_CH'(Identities_Length => PSK_Identities'Length, Identities => PSK_Identities, Binders_Length => Length, Binders => Binders))
       - CH_PSK_Prepared := True
     transitions:
       - target: ERROR.INTERNAL_ERROR
@@ -1115,7 +1115,7 @@ states:
       - "Server_Key : GreenTLS.Content"
       - "Server_IV : GreenTLS.Content"
     actions:
-      - Server_Application_Traffic_Secret = HKDF_Expand_Label (GreenTLS.Content'(Data => Server_Application_Traffic_Secret.Data), "traffic upd", Get_Hash (Empty_Hash), Hash_Length)
+      - Server_Application_Traffic_Secret := HKDF_Expand_Label (GreenTLS.Content'(Data => Server_Application_Traffic_Secret.Data), "traffic upd", Get_Hash (Empty_Hash), Hash_Length)
       - Server_Key := HKDF_Expand_Label (GreenTLS.Content'(Data => Server_Application_Traffic_Secret.Data), "key", Get_Hash (Empty_Hash), Keystore_Message.Key_Length)
       - Server_IV := HKDF_Expand_Label (GreenTLS.Content'(Data => Server_Application_Traffic_Secret.Data), "iv", Get_Hash (Empty_Hash), Keystore_Message.IV_Length)
       - Success_Server := Write (Record_Control_Channel, GreenTLS.Control_Message (Tag => KEY_UPDATE_SERVER, Length => Data'Length, Data => Data) where Data = GreenTLS.Record_Keys'(Key_Length => Server_Key'Length, Key => Server_Key.Data, IV_Length => Server_IV'Length, IV => Server_IV.Data)
@@ -1132,7 +1132,7 @@ states:
       - "Client_IV : GreenTLS.Content"
     actions:
       - Success := Write (Record_Data_Channel, TLS_Handshake.Handshake'(Tag => HANDSHAKE_KEY_UPDATE, Length => KU'Length, Payload => KU) where KU = TLS_Handshake.Key_Update'(Request_Update => TLS_Handshake.UPDATE_NOT_REQUESTED))
-      - Client_Application_Traffic_Secret = HKDF_Expand_Label (GreenTLS.Content'(Data => Client_Application_Traffic_Secret), "traffic upd", Get_Hash (Empty_Hash), Hash_Length)
+      - Client_Application_Traffic_Secret := HKDF_Expand_Label (GreenTLS.Content'(Data => Client_Application_Traffic_Secret), "traffic upd", Get_Hash (Empty_Hash), Hash_Length)
       - Client_Key := HKDF_Expand_Label (GreenTLS.Content'(Data => Client_Application_Traffic_Secret.Data), "key", Get_Hash (Empty_Hash), Keystore_Message.Key_Length)
       - Client_IV := HKDF_Expand_Label (GreenTLS.Content'(Data => Client_Application_Traffic_Secret.Data), "iv", Get_Hash (Empty_Hash), Keystore_Message.IV_Length)
       - Success_Client := Write (Record_Control_Channel, GreenTLS.Control_Message (Tag => KEY_UPDATE_CLIENT, Length => Data'Length, Data => Data) where Data = GreenTLS.Record_Keys'(Key_Length => Client_Key'Length, Key => Client_Key.Data, IV_Length => Client_IV'Length, IV => Client_IV.Data)
