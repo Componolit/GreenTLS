@@ -38,8 +38,8 @@ variables:
   - "TLS_Inner_Plaintext : TLS_Record.TLS_Inner_Plaintext"
   - "TLS_Record_Message : TLS_Record.TLS_Record"
 functions:
-  - "Decrypt (Server_Key_Update_Message : GreenTLS.Key_Update_Message, Server_Sequence_Number : GreenTLS.Sequence_Number, Encrypted_Record : Payload) return TLS_Record.TLS_Inner_Plaintext"
-  - "Encrypt (Client_Key_Update_Message : GreenTLS.Key_Update_Message, Client_Sequence_Number : GreenTLS.Sequence_Number, Fragment : Payload) return GreenTLS.Content"
+  - "Decrypt (Server_Key_Update_Message : GreenTLS.Key_Update_Message; Server_Sequence_Number : GreenTLS.Sequence_Number; Encrypted_Record : Payload) return TLS_Record.TLS_Inner_Plaintext"
+  - "Encrypt (Client_Key_Update_Message : GreenTLS.Key_Update_Message; Client_Sequence_Number : GreenTLS.Sequence_Number; Fragment : Payload) return GreenTLS.Content"
 initial: IDLE
 final: FINAL
 states:
