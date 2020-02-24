@@ -89,9 +89,9 @@ states:
       - target: IDLE.APPLICATION
         condition: Network_Receive_Enabled = False
   - name: IDLE.APPLICATION
-    actions:
     variables:
       - "Available : Boolean := False"
+    actions:
       - Available := Data_Available (Data_Channel)
     transitions:
       - target: NETWORK_OUT.APPLICATION
