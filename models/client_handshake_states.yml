@@ -888,9 +888,8 @@ states:
       - target: SEND_FINISHED
 
   - name: QUERY_SIGNATURE
-    variables:
-      - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message'(Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_SIGNATURE, Length => Query'Length, Payload => Query) where Query = GreenTLS.Signature_Query'(ID => GreenTLS.Certificate (Keystore_Message.Payload).ID, Length => Hash'Length, Data => Hash) where Hash = Get_Hash (Transcript_Hash).Data)
     actions:
+      - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message'(Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_SIGNATURE, Length => Query'Length, Payload => Query) where Query = GreenTLS.Signature_Query'(ID => GreenTLS.Certificate (Keystore_Message.Payload).ID, Length => Hash'Length, Data => Hash) where Hash = Get_Hash (Transcript_Hash).Data)
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Keystore_Message'Valid = False or TLS_Handshake.Certificate_Verify (Keystore_Message.Payload)'Valid = False
@@ -1079,9 +1078,8 @@ states:
       - target: CONNECTED.PHA_SEND_FINISHED
 
   - name: CONNECTED.PHA_QUERY_SIGNATURE
-    variables:
-      - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message'(Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_SIGNATURE, Length => Query'Length, Payload => Query) where Query = GreenTLS.Signature_Query'(ID => GreenTLS.Certificate (Keystore_Message.Payload).ID, Length => Hash'Length, Data => Hash) where Hash = Get_Hash (Transcript_Hash).Data)
     actions:
+      - Keystore_Message := Call (Keystore_Channel, GreenTLS.Keystore_Message'(Tag => KEYSTORE_REQUEST, Request => KEYSTORE_REQUEST_SIGNATURE, Length => Query'Length, Payload => Query) where Query = GreenTLS.Signature_Query'(ID => GreenTLS.Certificate (Keystore_Message.Payload).ID, Length => Hash'Length, Data => Hash) where Hash = Get_Hash (Transcript_Hash).Data)
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Keystore_Message'Valid = False or TLS_Handshake.Certificate_Verify (Keystore_Message.Payload)'Valid = False
