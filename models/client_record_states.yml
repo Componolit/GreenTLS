@@ -40,6 +40,9 @@ variables:
 functions:
   - "Decrypt (Server_Key_Update_Message : GreenTLS.Key_Update_Message; Server_Sequence_Number : GreenTLS.Sequence_Number; Encrypted_Record : Payload) return TLS_Record.TLS_Inner_Plaintext"
   - "Encrypt (Client_Key_Update_Message : GreenTLS.Key_Update_Message; Client_Sequence_Number : GreenTLS.Sequence_Number; Fragment : Payload) return GreenTLS.Content"
+  - "GreenTLS : Dummy"
+  - "TLS_Record: Dummy"
+  - "TLS_Alert : Dummy"
 initial: IDLE
 final: FINAL
 states:
@@ -296,7 +299,7 @@ states:
       - "Success : Boolean"
     actions:
       - Network_Receive_Enabled := False
-      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Data'Length, Data => Data) where Description = Alert_Message.Description)
+      - Success := Write (Application_Control_Channel, GreenTLS.Application_Control_Message'(Tag => GreenTLS.APPLICATION_ALERT, Length => Description'Length, Data => Description) where Description = Alert_Message.Description)
     transitions:
       - target: ERROR.INTERNAL_ERROR
         condition: Success = False
@@ -425,6 +428,6 @@ states:
 
   - name: FINAL
     actions:
-      - Delete (Client_Key_Update_Message)
-      - Delete (Server_Key_Update_Message)
+      - Client_Key_Update_Message := null
+      - Server_Key_Update_Message := null
     doc: rfc8446.txt+4729:60-4731:14
