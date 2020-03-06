@@ -20,7 +20,7 @@ package GreenTLS is
       message
          Tag : Control_Message_Type;
          Length : Control_Message_Length
-            then Payload
+            then Data
                with Length => Length;
          Data : Opaque;
       end message;
@@ -40,7 +40,7 @@ package GreenTLS is
       end message;
 
    for Control_Message use (Data => Key_Update_Message)
-      if Tag = KEY_UPDATE_CLIENT or Tag = KEY_UDPATE_SERVER;
+      if Tag = KEY_UPDATE_CLIENT or Tag = KEY_UPDATE_SERVER;
 
    type Heartbeat_Mode is (HEARTBEAT_ENABLED, HEARTBEAT_DISABLED) with Size => 4;
 
@@ -68,7 +68,9 @@ package GreenTLS is
    type Application_Control_Message is
       message
          Tag : Application_Control_Message_Type;
-         Length : Length;
+         Length : Application_Control_Message_Length
+            then Data
+               with Length => Length;
          Data : Opaque;
       end message;
 
@@ -115,7 +117,7 @@ package GreenTLS is
          Signature_Algorithms_Cert_Enabled : Boolean
             then Signature_Algorithms_Cert
                if Signature_Algorithms_Cert_Enabled = True,
-            then Key_Shares_Length
+            then Key_Shares
                if Signature_Algorithms_Cert_Enabled = False;
          Signature_Algorithms_Cert : TLS_Handshake.Signature_Algorithms_Cert;
          Key_Shares : TLS_Handshake.Key_Share_CH;
@@ -129,14 +131,14 @@ package GreenTLS is
          Heartbeat_Mode : Heartbeat_Mode;
       end message;
 
-   type Name_Length is 1 .. 253 with Size => 8;
+   type Name_Length is range 1 .. 253 with Size => 8;
    type Port is range 1 .. 65535 with Size => 16;
 
    type Connection is
       message
          Name_Length : Name_Length
             then Name
-               with Length = Name_Length;
+               with Length => Name_Length;
          Name : Opaque;
          Port : Port;
       end message;
@@ -153,28 +155,24 @@ package GreenTLS is
 
    type Keystore_Message is
       message
-         Tag : Keystore_Message_Type
+         Tag : Keystore_Message_Type;
          Request : Keystore_Request_Type;
-         Length : Keystore_Payload_Length;
+         Length : Keystore_Payload_Length
+            then Payload
+               with Length => Length;
          Payload : Opaque;
       end message;
 
    for Keystore_Message use (Payload => Connection)
-      if Tag = KEYSTORE_REQUEST and Request = KEYSTORE_REQUEST_SERVER_PREFERRED_GROUPS;
+      if Tag = KEYSTORE_REQUEST and (Request = KEYSTORE_REQUEST_SERVER_PREFERRED_GROUPS or Request = KEYSTORE_REQUEST_PSKS);
 
    for Keystore_Message use (Payload => TLS_Handshake.Supported_Groups)
       if Tag = KEYSTORE_RESPONSE and Request = KEYSTORE_REQUEST_SERVER_PREFERRED_GROUPS;
-
-   for Keystore_Message use (Payload => Connection)
-      if Tag = KEYSTORE_REQUEST and Request = KEYSTORE_REQUEST_PSKS;
 
    type Key_Type is (EXTERNAL, RESUMPTION) with Size => 8;
 
    type PSK is
       message
-         Identity_Length : Length
-            then Identity
-               with Length => Identity_Length;
          Identity : TLS_Handshake.PSK_Identity;
          Cipher_Suite : TLS_Handshake.Cipher_Suite;
          Key_Type : Key_Type;
@@ -184,7 +182,7 @@ package GreenTLS is
          Key : Opaque;
       end message;
 
-   type PSKs is array PSK;
+   type PSKs is array of PSK;
 
    type PSK_Message is
       message
@@ -226,9 +224,9 @@ package GreenTLS is
       message
          ID : Certificate_ID;
          Length : KM_Length
-            then Content
+            then Data
                with Length => Length * 8;
-         Data : Payload;
+         Data : Opaque;
       end message;
 
    for Keystore_Message use (Payload => Signature_Query)
@@ -240,7 +238,7 @@ package GreenTLS is
    type New_Session_Ticket is
       message
          Connection : Connection;
-         Session : TLS_Handshake.New_Session_Ticket
+         Session : TLS_Handshake.New_Session_Ticket;
          PSK_Length : KM_Length
             then PSK
                with Length => PSK_Length;
@@ -267,17 +265,17 @@ package GreenTLS is
    type Signature_Validation_Result is (
       VALID_SIGNATURE,
       ILLEGAL_PARAMETER,
-      DECRYPT_ERROR,
+      DECRYPT_ERROR
    ) with Size => 8;
 
-   type RNG_Message_Type is (RNG_REQUEST, KEYSTORE_RESPONSE) with Size => 8;
+   type RNG_Message_Type is (RNG_REQUEST, RNG_RESPONSE) with Size => 8;
 
    type RNG_Message is
       message
          Tag : RNG_Message_Type;
          Length : KM_Length
             then Data
-               with Length => Length * 8,
+               with Length => Length * 8
                if Tag = RNG_RESPONSE;
          Data : Opaque;
       end message;
