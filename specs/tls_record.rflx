@@ -15,9 +15,9 @@ package TLS_Record is
             then Encrypted_Record
                with Length => Length * 8
                if Tag = APPLICATION_DATA and Legacy_Record_Version = TLS_1_2;
-         Fragment : Payload
+         Fragment : Opaque
             then null;
-         Encrypted_Record : Payload;
+         Encrypted_Record : Opaque;
       end message;
 
    -- ISSUE: Componolit/RecordFlux#90
@@ -30,7 +30,7 @@ package TLS_Record is
    --          then Content
    --             with Length => Message'Length - Zeros'Length - Tag'Length
    --             if Tag = APPLICATION or ((Tag = ALERT or Tag = HANDSHAKE) and Message'Length - Zeros'Length - Tag'Length > 0)
-   --       Content : Payload;
+   --       Content : Opaque;
    --    end message
    --       with Order => Right_To_Left;
 
